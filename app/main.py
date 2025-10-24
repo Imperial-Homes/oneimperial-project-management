@@ -10,6 +10,7 @@ from app.api import (
     resource_assignments,
     schedules,
     budgets,
+    dashboard,
 )
 from app.config import settings
 
