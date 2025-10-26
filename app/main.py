@@ -19,7 +19,7 @@ app = FastAPI(
     version=settings.VERSION,
     description="Construction Project Management Service for OneImperial ERP",
     docs_url="/docs",
-    redoc_url="/redoc",,
+    redoc_url="/redoc",
     servers=[
         {
             "url": "https://api.imperialhomesghana.com/api/projects",
