@@ -19,7 +19,21 @@ app = FastAPI(
     version=settings.VERSION,
     description="Construction Project Management Service for OneImperial ERP",
     docs_url="/docs",
-    redoc_url="/redoc",
+    redoc_url="/redoc",,
+    servers=[
+        {
+            "url": "https://api.imperialhomesghana.com/api/projects",
+            "description": "Production server"
+        },
+        {
+            "url": "http://localhost/api/projects",
+            "description": "Local development"
+        },
+        {
+            "url": "/api/projects",
+            "description": "Relative URL (current domain)"
+        }
+    ]
 )
 
 # CORS middleware
