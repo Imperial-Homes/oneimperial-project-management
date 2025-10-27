@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     # Currency
     DEFAULT_CURRENCY: str = "GHS"
     
+    # CORS
+    CORS_ORIGINS: list = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8080",
+        "https://api.imperialhomesghana.com",
+    ]
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
