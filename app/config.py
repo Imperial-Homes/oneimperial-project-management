@@ -39,6 +39,7 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://localhost:8080",
         "https://api.imperialhomesghana.com",
+        "https://erp.imperialhomesghana.com",
     ]
     
     class Config:
