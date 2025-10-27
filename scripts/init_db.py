@@ -14,18 +14,21 @@ from app.database import Base
 
 # Import all models so they're registered with Base.metadata
 from app.models import budget, project, resource, schedule, task  # noqa: F401
-
-
 async def init_database():
     """Initialize database tables."""
     print("Creating database tables...")
+    print(f"Database URL: {settings.DATABASE_URL.split('@')[1]}")  # Hide password
+    print(f"Tables to create: {list(Base.metadata.tables.keys())}")
     
     engine = create_async_engine(settings.DATABASE_URL, echo=True)
     
     async with engine.begin() as conn:
         # Drop all tables (use with caution!)
+        print("Dropping existing tables...")
         await conn.run_sync(Base.metadata.drop_all)
+        
         # Create all tables
+        print("Creating new tables...")
         await conn.run_sync(Base.metadata.create_all)
     
     await engine.dispose()
