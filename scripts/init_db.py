@@ -12,6 +12,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from app.config import settings
 from app.database import Base
 
+# Import all models so they're registered with Base.metadata
+from app.models import budget, project, resource, schedule, task  # noqa: F401
+
 
 async def init_database():
     """Initialize database tables."""
