@@ -34,13 +34,14 @@ class Settings(BaseSettings):
     DEFAULT_CURRENCY: str = "GHS"
     
     # CORS
-    CORS_ORIGINS: list = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:8080",
-        "https://api.imperialhomesghana.com",
-        "https://erp.imperialhomesghana.com",
-    ]
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173,http://localhost:8080,https://api.imperialhomesghana.com,https://erp.imperialhomesghana.com,https://oneimperial-dashboard.ondigitalocean.app"
+
+    @property
+    def cors_origins_list(self) -> list:
+        """Parse CORS origins from comma-separated string."""
+        if isinstance(self.CORS_ORIGINS, str):
+            return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        return self.CORS_ORIGINS
     
     class Config:
         env_file = ".env"
