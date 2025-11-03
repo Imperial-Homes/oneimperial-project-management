@@ -42,13 +42,12 @@ async def get_dashboard_stats(
     
     # Task stats
     total_tasks = await db.scalar(
-        select(func.count()).select_from(Task).where(Task.is_active == True)
+        select(func.count()).select_from(Task)
     )
     
     tasks_by_status = {}
     result = await db.execute(
         select(Task.status, func.count(Task.id))
-        .where(Task.is_active == True)
         .group_by(Task.status)
     )
     for status, count in result:
@@ -56,12 +55,12 @@ async def get_dashboard_stats(
     
     # Resource stats
     total_resources = await db.scalar(
-        select(func.count()).select_from(Resource).where(Resource.is_active == True)
+        select(func.count()).select_from(Resource)
     )
     
     available_resources = await db.scalar(
         select(func.count()).select_from(Resource)
-        .where(Resource.availability_status == "available", Resource.is_active == True)
+        .where(Resource.availability_status == "available")
     )
     
     # Budget stats
@@ -115,7 +114,6 @@ async def get_recent_activity(
     # Recent tasks
     result = await db.execute(
         select(Task)
-        .where(Task.is_active == True)
         .order_by(Task.created_at.desc())
         .limit(limit)
     )
@@ -161,8 +159,7 @@ async def get_alerts(
         select(Task)
         .where(
             Task.due_date < datetime.now().date(),
-            Task.status.in_(["todo", "in_progress"]),
-            Task.is_active == True
+            Task.status.in_(["todo", "in_progress"])
         )
     )
     overdue_tasks = result.scalars().all()
