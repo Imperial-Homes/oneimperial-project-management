@@ -71,6 +71,22 @@ async def root():
     }
 
 
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    """
+    Handle OPTIONS preflight requests for CORS.
+    Since CORSMiddleware is disabled (NGINX handles CORS),
+    we need to explicitly allow OPTIONS requests.
+    """
+    return JSONResponse(
+        content={"message": "OK"},
+        status_code=200,
+        headers={
+            "Allow": "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        }
+    )
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
@@ -80,45 +96,33 @@ async def health_check():
 # Global exception handlers
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """Handle HTTP exceptions with proper CORS headers."""
+    """Handle HTTP exceptions. NGINX adds CORS headers."""
     return JSONResponse(
         status_code=exc.status_code,
         content={
             "detail": exc.detail,
             "status_code": exc.status_code
-        },
-        headers={
-            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-            "Access-Control-Allow-Credentials": "true",
         }
     )
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle validation errors with proper CORS headers."""
+    """Handle validation errors. NGINX adds CORS headers."""
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": exc.errors()},
-        headers={
-            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-            "Access-Control-Allow-Credentials": "true",
-        }
+        content={"detail": exc.errors()}
     )
 
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler with CORS headers."""
+    """Global exception handler. NGINX adds CORS headers."""
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "detail": "An internal server error occurred",
             "error": str(exc) if settings.DEBUG else "Internal server error"
-        },
-        headers={
-            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-            "Access-Control-Allow-Credentials": "true",
         }
     )
