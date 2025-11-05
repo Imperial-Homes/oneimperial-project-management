@@ -63,14 +63,24 @@ async def get_dashboard_stats(
         .where(Resource.availability_status == "available")
     )
     
-    # Budget stats
+    # Budget stats - calculate total_spent from ProjectCost
     result = await db.execute(
         select(
-            func.sum(ProjectBudget.total_budget),
-            func.sum(ProjectBudget.total_spent)
+            func.coalesce(func.sum(ProjectBudget.total_budget), 0).label('total_budget')
         )
+        .where(ProjectBudget.is_approved == True)
     )
-    total_budget, total_spent = result.one()
+    total_budget = result.scalar() or 0
+    
+    # Calculate total spent across all approved budgets
+    result = await db.execute(
+        select(
+            func.coalesce(func.sum(ProjectCost.amount), 0).label('total_spent')
+        )
+        .join(ProjectBudget, ProjectCost.project_id == ProjectBudget.project_id)
+        .where(ProjectBudget.is_approved == True)
+    )
+    total_spent = result.scalar() or 0
     
     return {
         "projects": {
