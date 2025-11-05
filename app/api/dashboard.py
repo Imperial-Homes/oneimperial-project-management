@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
 from app.database import get_db
-from app.models import Project, Task, Resource, ProjectBudget, ProjectSchedule
+from app.models import Project, Task, Resource, ProjectBudget, ProjectCost, ProjectSchedule
 
 router = APIRouter()
 
@@ -173,12 +173,19 @@ async def get_alerts(
             "count": len(overdue_tasks),
         })
     
-    # Projects over budget
+    # Projects over budget - calculate actual spending from ProjectCost
     result = await db.execute(
-        select(ProjectBudget)
-        .where(ProjectBudget.total_spent > ProjectBudget.total_budget)
+        select(
+            ProjectBudget.project_id,
+            ProjectBudget.total_budget,
+            func.coalesce(func.sum(ProjectCost.amount), 0).label('total_spent')
+        )
+        .outerjoin(ProjectCost, ProjectBudget.project_id == ProjectCost.project_id)
+        .where(ProjectBudget.is_approved == True)
+        .group_by(ProjectBudget.project_id, ProjectBudget.total_budget)
+        .having(func.coalesce(func.sum(ProjectCost.amount), 0) > ProjectBudget.total_budget)
     )
-    over_budget = result.scalars().all()
+    over_budget = result.all()
     
     if over_budget:
         alerts.append({
@@ -191,10 +198,17 @@ async def get_alerts(
     
     # Projects nearing budget limit (>90%)
     result = await db.execute(
-        select(ProjectBudget)
-        .where(
-            ProjectBudget.total_spent > (ProjectBudget.total_budget * 0.9),
-            ProjectBudget.total_spent <= ProjectBudget.total_budget
+        select(
+            ProjectBudget.project_id,
+            ProjectBudget.total_budget,
+            func.coalesce(func.sum(ProjectCost.amount), 0).label('total_spent')
+        )
+        .outerjoin(ProjectCost, ProjectBudget.project_id == ProjectCost.project_id)
+        .where(ProjectBudget.is_approved == True)
+        .group_by(ProjectBudget.project_id, ProjectBudget.total_budget)
+        .having(
+            func.coalesce(func.sum(ProjectCost.amount), 0) > (ProjectBudget.total_budget * 0.9),
+            func.coalesce(func.sum(ProjectCost.amount), 0) <= ProjectBudget.total_budget
         )
     )
     near_budget = result.scalars().all()
