@@ -14,6 +14,8 @@ from app.api import (
     resource_assignments,
     schedules,
     budgets,
+    variations,
+    payments,
     dashboard,
 )
 from app.config import settings
@@ -59,6 +61,8 @@ app.include_router(resources.router, prefix="/resources", tags=["Resources"])
 app.include_router(resource_assignments.router, prefix="/assignments", tags=["Resource Assignments"])
 app.include_router(schedules.router, prefix="/schedules", tags=["Schedules"])
 app.include_router(budgets.router, prefix="/budgets", tags=["Budgets"])
+app.include_router(variations.router, prefix="/variations", tags=["Variations"])
+app.include_router(payments.router, prefix="/payments", tags=["Payments"])
 
 
 @app.get("/")
