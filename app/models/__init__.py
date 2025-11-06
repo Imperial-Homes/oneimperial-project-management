@@ -9,7 +9,7 @@ from app.models.variation import ProjectVariation
 from app.models.payment import ProjectPayment
 from app.models.timeline import (
     ProjectTimeline,
-    TaskDependency as TimelineTaskDependency,
+    TimelineTaskDependency,
     ProjectProgress,
     TaskProgress,
     Milestone as TimelineMilestone,
