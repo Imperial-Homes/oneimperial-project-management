@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.auth import get_current_user
+from app.core.deps import get_current_user
 from app.database import get_db
 from app.models.timeline import ProjectTimeline, TimelineTaskDependency, TimelineMilestone
 from app.models.project import Project
