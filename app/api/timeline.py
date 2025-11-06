@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.auth import get_current_user
 from app.database import get_db
-from app.models.timeline import ProjectTimeline, TimelineTaskDependency, Milestone
+from app.models.timeline import ProjectTimeline, TimelineTaskDependency, TimelineMilestone
 from app.models.project import Project
 from app.models.task import Task
 from app.schemas.timeline import (
@@ -20,9 +20,9 @@ from app.schemas.timeline import (
     TaskDependencyCreate,
     TaskDependencyUpdate,
     TaskDependencyResponse,
-    MilestoneCreate,
-    MilestoneUpdate,
-    MilestoneResponse,
+    TimelineMilestoneCreate,
+    TimelineMilestoneUpdate,
+    TimelineMilestoneResponse,
     GanttChartResponse,
     GanttTaskData,
 )
@@ -207,12 +207,12 @@ def delete_task_dependency(
 
 
 # ============================================================================
-# Milestone Endpoints
+# TimelineMilestone Endpoints
 # ============================================================================
 
-@router.post("/milestones", response_model=MilestoneResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/milestones", response_model=TimelineMilestoneResponse, status_code=status.HTTP_201_CREATED)
 def create_milestone(
-    milestone_data: MilestoneCreate,
+    milestone_data: TimelineMilestoneCreate,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -222,7 +222,7 @@ def create_milestone(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    milestone = Milestone(
+    milestone = TimelineMilestone(
         **milestone_data.model_dump(),
         created_by=UUID(current_user["sub"])
     )
@@ -232,20 +232,20 @@ def create_milestone(
     return milestone
 
 
-@router.get("/milestones/{milestone_id}", response_model=MilestoneResponse)
+@router.get("/milestones/{milestone_id}", response_model=TimelineMilestoneResponse)
 def get_milestone(
     milestone_id: UUID,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get milestone by ID."""
-    milestone = db.query(Milestone).filter(Milestone.id == milestone_id).first()
+    milestone = db.query(TimelineMilestone).filter(TimelineMilestone.id == milestone_id).first()
     if not milestone:
-        raise HTTPException(status_code=404, detail="Milestone not found")
+        raise HTTPException(status_code=404, detail="TimelineMilestone not found")
     return milestone
 
 
-@router.get("/milestones/project/{project_id}", response_model=List[MilestoneResponse])
+@router.get("/milestones/project/{project_id}", response_model=List[TimelineMilestoneResponse])
 def get_project_milestones(
     project_id: UUID,
     status: Optional[str] = Query(None),
@@ -253,26 +253,26 @@ def get_project_milestones(
     db: Session = Depends(get_db)
 ):
     """Get all milestones for a project."""
-    query = db.query(Milestone).filter(Milestone.project_id == project_id)
+    query = db.query(TimelineMilestone).filter(TimelineMilestone.project_id == project_id)
     
     if status:
-        query = query.filter(Milestone.status == status)
+        query = query.filter(TimelineMilestone.status == status)
     
-    milestones = query.order_by(Milestone.target_date).all()
+    milestones = query.order_by(TimelineMilestone.target_date).all()
     return milestones
 
 
-@router.put("/milestones/{milestone_id}", response_model=MilestoneResponse)
+@router.put("/milestones/{milestone_id}", response_model=TimelineMilestoneResponse)
 def update_milestone(
     milestone_id: UUID,
-    milestone_data: MilestoneUpdate,
+    milestone_data: TimelineMilestoneUpdate,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Update milestone."""
-    milestone = db.query(Milestone).filter(Milestone.id == milestone_id).first()
+    milestone = db.query(TimelineMilestone).filter(TimelineMilestone.id == milestone_id).first()
     if not milestone:
-        raise HTTPException(status_code=404, detail="Milestone not found")
+        raise HTTPException(status_code=404, detail="TimelineMilestone not found")
     
     update_data = milestone_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -295,9 +295,9 @@ def delete_milestone(
     db: Session = Depends(get_db)
 ):
     """Delete milestone."""
-    milestone = db.query(Milestone).filter(Milestone.id == milestone_id).first()
+    milestone = db.query(TimelineMilestone).filter(TimelineMilestone.id == milestone_id).first()
     if not milestone:
-        raise HTTPException(status_code=404, detail="Milestone not found")
+        raise HTTPException(status_code=404, detail="TimelineMilestone not found")
     
     db.delete(milestone)
     db.commit()
@@ -327,9 +327,9 @@ def get_gantt_chart_data(
     ).all()
     
     # Get milestones
-    milestones = db.query(Milestone).filter(
-        Milestone.project_id == project_id
-    ).order_by(Milestone.target_date).all()
+    milestones = db.query(TimelineMilestone).filter(
+        TimelineMilestone.project_id == project_id
+    ).order_by(TimelineMilestone.target_date).all()
     
     # Get dependencies
     task_ids = [task.id for task in tasks]
