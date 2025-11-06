@@ -20,9 +20,9 @@ from app.schemas.timeline import (
     TaskDependencyCreate,
     TaskDependencyUpdate,
     TaskDependencyResponse,
-    TimelineMilestoneCreate,
-    TimelineMilestoneUpdate,
-    TimelineMilestoneResponse,
+    MilestoneCreate,
+    MilestoneUpdate,
+    MilestoneResponse,
     GanttChartResponse,
     GanttTaskData,
 )
@@ -210,9 +210,9 @@ def delete_task_dependency(
 # TimelineMilestone Endpoints
 # ============================================================================
 
-@router.post("/milestones", response_model=TimelineMilestoneResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/milestones", response_model=MilestoneResponse, status_code=status.HTTP_201_CREATED)
 def create_milestone(
-    milestone_data: TimelineMilestoneCreate,
+    milestone_data: MilestoneCreate,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -232,7 +232,7 @@ def create_milestone(
     return milestone
 
 
-@router.get("/milestones/{milestone_id}", response_model=TimelineMilestoneResponse)
+@router.get("/milestones/{milestone_id}", response_model=MilestoneResponse)
 def get_milestone(
     milestone_id: UUID,
     current_user: dict = Depends(get_current_user),
@@ -245,7 +245,7 @@ def get_milestone(
     return milestone
 
 
-@router.get("/milestones/project/{project_id}", response_model=List[TimelineMilestoneResponse])
+@router.get("/milestones/project/{project_id}", response_model=List[MilestoneResponse])
 def get_project_milestones(
     project_id: UUID,
     status: Optional[str] = Query(None),
@@ -262,10 +262,10 @@ def get_project_milestones(
     return milestones
 
 
-@router.put("/milestones/{milestone_id}", response_model=TimelineMilestoneResponse)
+@router.put("/milestones/{milestone_id}", response_model=MilestoneResponse)
 def update_milestone(
     milestone_id: UUID,
-    milestone_data: TimelineMilestoneUpdate,
+    milestone_data: MilestoneUpdate,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
