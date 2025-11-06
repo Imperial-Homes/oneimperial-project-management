@@ -30,13 +30,13 @@ class ProjectTimeline(Base):
     
     # Relationships
     project = relationship("Project", backref="timelines")
-    dependencies = relationship("TaskDependency", back_populates="timeline", cascade="all, delete-orphan")
+    dependencies = relationship("TimelineTaskDependency", back_populates="timeline", cascade="all, delete-orphan")
 
 
-class TaskDependency(Base):
+class TimelineTaskDependency(Base):
     """Task dependency model for critical path calculation."""
     
-    __tablename__ = "task_dependencies"
+    __tablename__ = "timeline_task_dependencies"
     
     id = Column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
     timeline_id = Column(PostgreSQLUUID(as_uuid=True), ForeignKey("project_timelines.id", ondelete="CASCADE"), nullable=False)
