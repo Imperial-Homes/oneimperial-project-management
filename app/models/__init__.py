@@ -12,7 +12,7 @@ from app.models.timeline import (
     TimelineTaskDependency,
     ProjectProgress,
     TaskProgress,
-    Milestone as TimelineMilestone,
+    TimelineMilestone,
     ResourceUtilization,
 )
 

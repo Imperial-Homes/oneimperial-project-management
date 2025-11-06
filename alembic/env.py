@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from app.config import get_settings
+from app.config import settings
 from app.database import Base
 # Import all models to ensure they're registered with Base.metadata
 import app.models  # noqa: F401
@@ -22,7 +22,6 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Get database URL from settings
-settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 # Add your model's MetaData object here for 'autogenerate' support
