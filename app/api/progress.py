@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, func, desc
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user
+from app.core.deps import get_current_user
 from app.database import get_db
-from app.models.timeline import ProjectProgress, TaskProgress, Milestone
+from app.models.timeline import ProjectProgress, TaskProgress, TimelineMilestone
 from app.models.project import Project
 from app.models.task import Task
 from app.schemas.timeline import (
@@ -139,11 +139,11 @@ def get_project_progress_summary(
     
     # Get milestone counts
     milestones = db.query(
-        Milestone.status,
-        func.count(Milestone.id).label('count')
+        TimelineMilestone.status,
+        func.count(TimelineMilestone.id).label('count')
     ).filter(
-        Milestone.project_id == project_id
-    ).group_by(Milestone.status).all()
+        TimelineMilestone.project_id == project_id
+    ).group_by(TimelineMilestone.status).all()
     
     milestone_counts = {status: count for status, count in milestones}
     
