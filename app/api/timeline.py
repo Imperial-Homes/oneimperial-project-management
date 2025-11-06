@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.auth import get_current_user
 from app.database import get_db
-from app.models.timeline import ProjectTimeline, TaskDependency, Milestone
+from app.models.timeline import ProjectTimeline, TimelineTaskDependency, Milestone
 from app.models.project import Project
 from app.models.task import Task
 from app.schemas.timeline import (
@@ -150,7 +150,7 @@ def create_task_dependency(
     if dependency_data.predecessor_task_id == dependency_data.successor_task_id:
         raise HTTPException(status_code=400, detail="Task cannot depend on itself")
     
-    dependency = TaskDependency(**dependency_data.model_dump())
+    dependency = TimelineTaskDependency(**dependency_data.model_dump())
     db.add(dependency)
     db.commit()
     db.refresh(dependency)
@@ -164,7 +164,7 @@ def get_task_dependency(
     db: Session = Depends(get_db)
 ):
     """Get task dependency by ID."""
-    dependency = db.query(TaskDependency).filter(TaskDependency.id == dependency_id).first()
+    dependency = db.query(TimelineTaskDependency).filter(TimelineTaskDependency.id == dependency_id).first()
     if not dependency:
         raise HTTPException(status_code=404, detail="Dependency not found")
     return dependency
@@ -178,13 +178,12 @@ def update_task_dependency(
     db: Session = Depends(get_db)
 ):
     """Update task dependency."""
-    dependency = db.query(TaskDependency).filter(TaskDependency.id == dependency_id).first()
+    dependency = db.query(TimelineTaskDependency).filter(TimelineTaskDependency.id == dependency_id).first()
     if not dependency:
         raise HTTPException(status_code=404, detail="Dependency not found")
     
-    update_data = dependency_data.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(dependency, field, value)
+    for key, value in dependency_data.model_dump(exclude_unset=True).items():
+        setattr(dependency, key, value)
     
     db.commit()
     db.refresh(dependency)
@@ -198,13 +197,13 @@ def delete_task_dependency(
     db: Session = Depends(get_db)
 ):
     """Delete task dependency."""
-    dependency = db.query(TaskDependency).filter(TaskDependency.id == dependency_id).first()
+    dependency = db.query(TimelineTaskDependency).filter(TimelineTaskDependency.id == dependency_id).first()
     if not dependency:
         raise HTTPException(status_code=404, detail="Dependency not found")
     
     db.delete(dependency)
     db.commit()
-    return None
+    return {"message": "Dependency deleted successfully"}
 
 
 # ============================================================================
@@ -334,8 +333,8 @@ def get_gantt_chart_data(
     
     # Get dependencies
     task_ids = [task.id for task in tasks]
-    dependencies = db.query(TaskDependency).filter(
-        TaskDependency.predecessor_task_id.in_(task_ids)
+    dependencies = db.query(TimelineTaskDependency).filter(
+        TimelineTaskDependency.predecessor_task_id.in_(task_ids)
     ).all()
     
     # Build dependency map
