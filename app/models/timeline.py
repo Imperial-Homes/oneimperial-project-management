@@ -31,6 +31,7 @@ class ProjectTimeline(Base):
     # Relationships
     project = relationship("Project", backref="timelines")
     dependencies = relationship("TimelineTaskDependency", back_populates="timeline", cascade="all, delete-orphan")
+    milestones = relationship("TimelineMilestone", back_populates="timeline", cascade="all, delete-orphan")
 
 
 class TimelineTaskDependency(Base):
@@ -100,10 +101,10 @@ class TaskProgress(Base):
     task = relationship("Task", backref="progress_history")
 
 
-class Milestone(Base):
+class TimelineMilestone(Base):
     """Project milestone model."""
     
-    __tablename__ = "milestones"
+    __tablename__ = "timeline_milestones"
     
     id = Column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id = Column(PostgreSQLUUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
