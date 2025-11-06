@@ -7,6 +7,14 @@ from app.models.schedule import ProjectSchedule, Milestone
 from app.models.budget import ProjectBudget, ProjectCost
 from app.models.variation import ProjectVariation
 from app.models.payment import ProjectPayment
+from app.models.timeline import (
+    ProjectTimeline,
+    TaskDependency as TimelineTaskDependency,
+    ProjectProgress,
+    TaskProgress,
+    Milestone as TimelineMilestone,
+    ResourceUtilization,
+)
 
 __all__ = [
     "Project",
@@ -21,4 +29,10 @@ __all__ = [
     "ProjectCost",
     "ProjectVariation",
     "ProjectPayment",
+    "ProjectTimeline",
+    "TimelineTaskDependency",
+    "ProjectProgress",
+    "TaskProgress",
+    "TimelineMilestone",
+    "ResourceUtilization",
 ]

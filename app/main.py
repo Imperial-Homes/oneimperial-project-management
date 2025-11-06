@@ -17,6 +17,9 @@ from app.api import (
     variations,
     payments,
     dashboard,
+    timeline,
+    progress,
+    resource_utilization,
 )
 from app.config import settings
 
@@ -63,6 +66,9 @@ app.include_router(schedules.router, prefix="/schedules", tags=["Schedules"])
 app.include_router(budgets.router, prefix="/budgets", tags=["Budgets"])
 app.include_router(variations.router, prefix="/variations", tags=["Variations"])
 app.include_router(payments.router, prefix="/payments", tags=["Payments"])
+app.include_router(timeline.router, prefix="/timelines", tags=["Timeline & Gantt"])
+app.include_router(progress.router, prefix="/progress", tags=["Progress Tracking"])
+app.include_router(resource_utilization.router, prefix="/utilization", tags=["Resource Utilization"])
 
 
 @app.get("/")
