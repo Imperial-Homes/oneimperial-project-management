@@ -19,138 +19,164 @@ depends_on = None
 def upgrade():
     """Create project_variations and project_payments tables."""
     
-    # Create enum types
+    # Create enum types (if not exists)
     op.execute("""
-        CREATE TYPE variationtype AS ENUM (
-            'scope_change', 'design_change', 'unforeseen', 
-            'client_request', 'cost_saving', 'regulatory'
-        )
+        DO $$ BEGIN
+            CREATE TYPE variationtype AS ENUM (
+                'scope_change', 'design_change', 'unforeseen', 
+                'client_request', 'cost_saving', 'regulatory'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
     """)
     
     op.execute("""
-        CREATE TYPE variationstatus AS ENUM (
-            'draft', 'submitted', 'under_review', 'approved', 
-            'rejected', 'implemented', 'cancelled'
-        )
+        DO $$ BEGIN
+            CREATE TYPE variationstatus AS ENUM (
+                'draft', 'submitted', 'under_review', 'approved', 
+                'rejected', 'implemented', 'cancelled'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
     """)
     
     op.execute("""
-        CREATE TYPE paymentmethod AS ENUM (
-            'bank_transfer', 'check', 'cash', 'mobile_money', 
-            'wire_transfer', 'credit_card'
-        )
+        DO $$ BEGIN
+            CREATE TYPE paymentmethod AS ENUM (
+                'bank_transfer', 'check', 'cash', 'mobile_money', 
+                'wire_transfer', 'credit_card'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
     """)
     
     op.execute("""
-        CREATE TYPE paymenttype AS ENUM (
-            'advance', 'milestone', 'progress', 'retention', 'final', 'variation'
-        )
+        DO $$ BEGIN
+            CREATE TYPE paymenttype AS ENUM (
+                'advance', 'milestone', 'progress', 'retention', 'final', 'variation'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
     """)
     
     op.execute("""
-        CREATE TYPE paymentstatus AS ENUM (
-            'pending', 'processing', 'completed', 'failed', 'cancelled', 'refunded'
+        DO $$ BEGIN
+            CREATE TYPE paymentstatus AS ENUM (
+                'pending', 'processing', 'completed', 'failed', 'cancelled', 'refunded'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    
+    # Create project_variations table (if not exists)
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS project_variations (
+            id UUID PRIMARY KEY,
+            variation_number VARCHAR(50) UNIQUE NOT NULL,
+            project_id UUID NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            description TEXT NOT NULL,
+            variation_type variationtype NOT NULL,
+            status variationstatus NOT NULL,
+            requested_by UUID NOT NULL,
+            requested_date DATE NOT NULL,
+            original_amount NUMERIC(15, 2),
+            variation_amount NUMERIC(15, 2) NOT NULL,
+            new_total_amount NUMERIC(15, 2),
+            currency VARCHAR(3),
+            impact_on_timeline INTEGER,
+            original_completion_date DATE,
+            new_completion_date DATE,
+            justification TEXT,
+            impact_assessment TEXT,
+            attachments TEXT,
+            approved_by UUID,
+            approved_date DATE,
+            rejection_reason TEXT,
+            phase_id UUID,
+            task_id UUID,
+            priority VARCHAR(20),
+            is_active BOOLEAN,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            created_by UUID,
+            updated_at TIMESTAMP WITH TIME ZONE,
+            updated_by UUID
         )
     """)
     
-    # Create project_variations table
-    op.create_table(
-        'project_variations',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('variation_number', sa.String(50), unique=True, nullable=False),
-        sa.Column('project_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('title', sa.String(255), nullable=False),
-        sa.Column('description', sa.Text(), nullable=False),
-        sa.Column('variation_type', sa.Enum('scope_change', 'design_change', 'unforeseen', 'client_request', 'cost_saving', 'regulatory', name='variationtype'), nullable=False),
-        sa.Column('status', sa.Enum('draft', 'submitted', 'under_review', 'approved', 'rejected', 'implemented', 'cancelled', name='variationstatus'), nullable=False),
-        sa.Column('requested_by', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('requested_date', sa.Date(), nullable=False),
-        sa.Column('original_amount', sa.Numeric(15, 2)),
-        sa.Column('variation_amount', sa.Numeric(15, 2), nullable=False),
-        sa.Column('new_total_amount', sa.Numeric(15, 2)),
-        sa.Column('currency', sa.String(3)),
-        sa.Column('impact_on_timeline', sa.Integer()),
-        sa.Column('original_completion_date', sa.Date()),
-        sa.Column('new_completion_date', sa.Date()),
-        sa.Column('justification', sa.Text()),
-        sa.Column('impact_assessment', sa.Text()),
-        sa.Column('attachments', sa.Text()),
-        sa.Column('approved_by', postgresql.UUID(as_uuid=True)),
-        sa.Column('approved_date', sa.Date()),
-        sa.Column('rejection_reason', sa.Text()),
-        sa.Column('phase_id', postgresql.UUID(as_uuid=True)),
-        sa.Column('task_id', postgresql.UUID(as_uuid=True)),
-        sa.Column('priority', sa.String(20)),
-        sa.Column('is_active', sa.Boolean()),
-        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-        sa.Column('created_by', postgresql.UUID(as_uuid=True)),
-        sa.Column('updated_at', sa.DateTime(timezone=True)),
-        sa.Column('updated_by', postgresql.UUID(as_uuid=True)),
-    )
+    # Create project_payments table (if not exists)
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS project_payments (
+            id UUID PRIMARY KEY,
+            payment_number VARCHAR(50) UNIQUE NOT NULL,
+            project_id UUID NOT NULL,
+            payment_date DATE NOT NULL,
+            amount NUMERIC(15, 2) NOT NULL,
+            currency VARCHAR(3),
+            payment_method paymentmethod NOT NULL,
+            payment_type paymenttype NOT NULL,
+            status paymentstatus NOT NULL,
+            milestone_id UUID,
+            variation_id UUID,
+            invoice_reference VARCHAR(100),
+            reference_number VARCHAR(100),
+            transaction_id VARCHAR(100),
+            description TEXT,
+            notes TEXT,
+            paid_by UUID,
+            paid_by_name VARCHAR(255),
+            received_by UUID,
+            received_by_name VARCHAR(255),
+            receipt_url VARCHAR(500),
+            attachments TEXT,
+            bank_name VARCHAR(255),
+            account_number VARCHAR(100),
+            is_reconciled BOOLEAN,
+            reconciled_date DATE,
+            reconciled_by UUID,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            created_by UUID,
+            updated_at TIMESTAMP WITH TIME ZONE,
+            updated_by UUID
+        )
+    """)
     
-    # Create project_payments table
-    op.create_table(
-        'project_payments',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('payment_number', sa.String(50), unique=True, nullable=False),
-        sa.Column('project_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('payment_date', sa.Date(), nullable=False),
-        sa.Column('amount', sa.Numeric(15, 2), nullable=False),
-        sa.Column('currency', sa.String(3)),
-        sa.Column('payment_method', sa.Enum('bank_transfer', 'check', 'cash', 'mobile_money', 'wire_transfer', 'credit_card', name='paymentmethod'), nullable=False),
-        sa.Column('payment_type', sa.Enum('advance', 'milestone', 'progress', 'retention', 'final', 'variation', name='paymenttype'), nullable=False),
-        sa.Column('status', sa.Enum('pending', 'processing', 'completed', 'failed', 'cancelled', 'refunded', name='paymentstatus'), nullable=False),
-        sa.Column('milestone_id', postgresql.UUID(as_uuid=True)),
-        sa.Column('variation_id', postgresql.UUID(as_uuid=True)),
-        sa.Column('invoice_reference', sa.String(100)),
-        sa.Column('reference_number', sa.String(100)),
-        sa.Column('transaction_id', sa.String(100)),
-        sa.Column('description', sa.Text()),
-        sa.Column('notes', sa.Text()),
-        sa.Column('paid_by', postgresql.UUID(as_uuid=True)),
-        sa.Column('paid_by_name', sa.String(255)),
-        sa.Column('received_by', postgresql.UUID(as_uuid=True)),
-        sa.Column('received_by_name', sa.String(255)),
-        sa.Column('receipt_url', sa.String(500)),
-        sa.Column('attachments', sa.Text()),
-        sa.Column('bank_name', sa.String(255)),
-        sa.Column('account_number', sa.String(100)),
-        sa.Column('is_reconciled', sa.Boolean()),
-        sa.Column('reconciled_date', sa.Date()),
-        sa.Column('reconciled_by', postgresql.UUID(as_uuid=True)),
-        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-        sa.Column('created_by', postgresql.UUID(as_uuid=True)),
-        sa.Column('updated_at', sa.DateTime(timezone=True)),
-        sa.Column('updated_by', postgresql.UUID(as_uuid=True)),
-    )
+    # Create indexes (if not exists)
+    op.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_project_variations_variation_number ON project_variations(variation_number)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_project_variations_project_id ON project_variations(project_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_project_variations_variation_type ON project_variations(variation_type)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_project_variations_status ON project_variations(status)")
     
-    # Create indexes
-    op.create_index('ix_project_variations_variation_number', 'project_variations', ['variation_number'], unique=True)
-    op.create_index('ix_project_variations_project_id', 'project_variations', ['project_id'])
-    op.create_index('ix_project_variations_variation_type', 'project_variations', ['variation_type'])
-    op.create_index('ix_project_variations_status', 'project_variations', ['status'])
+    op.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_project_payments_payment_number ON project_payments(payment_number)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_project_payments_project_id ON project_payments(project_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_project_payments_payment_date ON project_payments(payment_date)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_project_payments_payment_type ON project_payments(payment_type)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_project_payments_status ON project_payments(status)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_project_payments_reference_number ON project_payments(reference_number)")
     
-    op.create_index('ix_project_payments_payment_number', 'project_payments', ['payment_number'], unique=True)
-    op.create_index('ix_project_payments_project_id', 'project_payments', ['project_id'])
-    op.create_index('ix_project_payments_payment_date', 'project_payments', ['payment_date'])
-    op.create_index('ix_project_payments_payment_type', 'project_payments', ['payment_type'])
-    op.create_index('ix_project_payments_status', 'project_payments', ['status'])
-    op.create_index('ix_project_payments_reference_number', 'project_payments', ['reference_number'])
+    # Create foreign keys (if not exists)
+    op.execute("""
+        DO $$ BEGIN
+            ALTER TABLE project_variations ADD CONSTRAINT fk_project_variations_project_id 
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
     
-    # Create foreign keys
-    op.create_foreign_key(
-        'fk_project_variations_project_id',
-        'project_variations', 'projects',
-        ['project_id'], ['id'],
-        ondelete='CASCADE'
-    )
-    
-    op.create_foreign_key(
-        'fk_project_payments_project_id',
-        'project_payments', 'projects',
-        ['project_id'], ['id'],
-        ondelete='CASCADE'
-    )
+    op.execute("""
+        DO $$ BEGIN
+            ALTER TABLE project_payments ADD CONSTRAINT fk_project_payments_project_id 
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
 
 
 def downgrade():
