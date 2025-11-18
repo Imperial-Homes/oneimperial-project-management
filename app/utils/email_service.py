@@ -322,6 +322,17 @@ class EmailService:
         
         return self.send_email(to_email, subject, html_content, text_content)
     
+    # TODO: Future Notifications to Implement
+    # - send_project_created_email() - Notify all team members
+    # - send_project_status_changed_email() - Update to stakeholders
+    # - send_project_deadline_approaching_email() - 7 days before deadline
+    # - send_task_completed_email() - Notify project manager
+    # - send_task_comment_added_email() - Notify task participants
+    # - send_variation_requested_email() - Notify approver
+    # - send_variation_approved_email() - Notify requester
+    # - send_variation_rejected_email() - Notify requester with reason
+    # See EMAIL_NOTIFICATIONS_TODO.md for full details
+    
     def send_project_milestone_reached_email(
         self,
         to_email: str,
