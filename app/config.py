@@ -43,6 +43,12 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
         return self.CORS_ORIGINS
     
+    # Email - Mailgun Configuration
+    MAILGUN_API_KEY: str = ""
+    MAILGUN_DOMAIN: str = ""
+    MAILGUN_FROM_EMAIL: str = "noreply@yourdomain.com"
+    MAILGUN_FROM_NAME: str = "OneImperial ERP"
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

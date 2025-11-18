@@ -29,3 +29,6 @@ redis==5.0.1
 
 # Utilities
 python-dotenv==1.0.0
+
+# Email
+requests==2.31.0

@@ -4,17 +4,21 @@ from datetime import datetime
 from math import ceil
 from typing import Optional
 from uuid import UUID
+import httpx
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_user
 from app.database import get_db
-from app.models import Task, TaskDependency
+from app.models import Task, TaskDependency, Project
 from app.schemas import TaskCreate, TaskUpdate, TaskResponse, TaskList
+from app.config import Settings
 
 router = APIRouter()
+settings = Settings()
 
 
 def generate_task_code() -> str:
@@ -122,6 +126,45 @@ async def create_task(
     db.add(task)
     await db.commit()
     await db.refresh(task)
+    
+    # Send email notification if task is assigned
+    if task.assignee_id:
+        try:
+            from app.utils.email_service import email_service
+            
+            # Get project details
+            project_result = await db.execute(
+                select(Project).where(Project.id == task.project_id)
+            )
+            project = project_result.scalar_one_or_none()
+            project_name = project.name if project else "Unknown Project"
+            
+            # Get assignee email from user service
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{settings.USER_SERVICE_URL}/users/{task.assignee_id}",
+                    timeout=5.0
+                )
+                if response.status_code == 200:
+                    user_data = response.json()
+                    assignee_email = user_data.get("email")
+                    assignee_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+                    
+                    if assignee_email:
+                        task_url = f"https://erp.imperialhomesghana.com/dashboard/project-management/tasks/{task.id}"
+                        email_service.send_task_assigned_email(
+                            to_email=assignee_email,
+                            assignee_name=assignee_name or "Team Member",
+                            task_title=task.name,
+                            project_name=project_name,
+                            due_date=task.due_date.strftime("%Y-%m-%d") if task.due_date else "Not set",
+                            priority=task.priority or "medium",
+                            task_url=task_url
+                        )
+        except Exception as e:
+            # Log error but don't fail task creation
+            print(f"Error sending task assignment email: {str(e)}")
+    
     return task
 
 
@@ -165,7 +208,13 @@ async def update_task(
             detail="Task not found"
         )
     
+    # Track if assignee changed
+    old_assignee_id = task.assignee_id
+    assignee_changed = False
+    
     for field, value in task_data.dict(exclude_unset=True).items():
+        if field == "assignee_id" and value != old_assignee_id:
+            assignee_changed = True
         setattr(task, field, value)
     
     if task.status == "done" and not task.completion_date:
@@ -173,6 +222,45 @@ async def update_task(
     
     await db.commit()
     await db.refresh(task)
+    
+    # Send email notification if assignee changed
+    if assignee_changed and task.assignee_id:
+        try:
+            from app.utils.email_service import email_service
+            
+            # Get project details
+            project_result = await db.execute(
+                select(Project).where(Project.id == task.project_id)
+            )
+            project = project_result.scalar_one_or_none()
+            project_name = project.name if project else "Unknown Project"
+            
+            # Get assignee email from user service
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{settings.USER_SERVICE_URL}/users/{task.assignee_id}",
+                    timeout=5.0
+                )
+                if response.status_code == 200:
+                    user_data = response.json()
+                    assignee_email = user_data.get("email")
+                    assignee_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+                    
+                    if assignee_email:
+                        task_url = f"https://erp.imperialhomesghana.com/dashboard/project-management/tasks/{task.id}"
+                        email_service.send_task_assigned_email(
+                            to_email=assignee_email,
+                            assignee_name=assignee_name or "Team Member",
+                            task_title=task.name,
+                            project_name=project_name,
+                            due_date=task.due_date.strftime("%Y-%m-%d") if task.due_date else "Not set",
+                            priority=task.priority or "medium",
+                            task_url=task_url
+                        )
+        except Exception as e:
+            # Log error but don't fail task update
+            print(f"Error sending task assignment email: {str(e)}")
+    
     return task
 
 
