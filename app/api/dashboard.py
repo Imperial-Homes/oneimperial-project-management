@@ -26,9 +26,13 @@ async def get_dashboard_stats(
         select(func.count()).select_from(Project).where(Project.is_active == True)
     )
     
+    # Active projects (status = active OR planning OR in_progress)
     active_projects = await db.scalar(
         select(func.count()).select_from(Project)
-        .where(Project.status == "active", Project.is_active == True)
+        .where(
+            Project.status.in_(["active", "planning", "in_progress"]),
+            Project.is_active == True
+        )
     )
     
     projects_by_status = {}
@@ -39,6 +43,36 @@ async def get_dashboard_stats(
     )
     for status, count in result:
         projects_by_status[status] = count
+    
+    # Behind schedule projects (target_end_date < today and status not completed)
+    behind_schedule = await db.scalar(
+        select(func.count()).select_from(Project)
+        .where(
+            Project.target_end_date < datetime.now().date(),
+            Project.status.notin_(["completed", "cancelled"]),
+            Project.is_active == True
+        )
+    )
+    
+    # On budget projects (calculate from project budget field)
+    result = await db.execute(
+        select(
+            Project.id,
+            Project.budget,
+            func.coalesce(func.sum(ProjectCost.amount), 0).label('total_spent')
+        )
+        .outerjoin(ProjectCost, Project.id == ProjectCost.project_id)
+        .where(Project.is_active == True, Project.budget.isnot(None))
+        .group_by(Project.id, Project.budget)
+    )
+    budget_data = result.all()
+    on_budget = sum(1 for _, budget, spent in budget_data if spent <= budget)
+    
+    # Calculate total value from all active projects
+    total_value = await db.scalar(
+        select(func.coalesce(func.sum(Project.budget), 0))
+        .where(Project.is_active == True)
+    )
     
     # Task stats
     total_tasks = await db.scalar(
@@ -55,12 +89,12 @@ async def get_dashboard_stats(
     
     # Resource stats
     total_resources = await db.scalar(
-        select(func.count()).select_from(Resource)
+        select(func.count()).select_from(Resource).where(Resource.is_active == True)
     )
     
     available_resources = await db.scalar(
         select(func.count()).select_from(Resource)
-        .where(Resource.availability_status == "available")
+        .where(Resource.availability_status == "available", Resource.is_active == True)
     )
     
     # Budget stats - calculate total_spent from ProjectCost
@@ -72,13 +106,11 @@ async def get_dashboard_stats(
     )
     total_budget = result.scalar() or 0
     
-    # Calculate total spent across all approved budgets
+    # Calculate total spent across all projects
     result = await db.execute(
         select(
             func.coalesce(func.sum(ProjectCost.amount), 0).label('total_spent')
         )
-        .join(ProjectBudget, ProjectCost.project_id == ProjectBudget.project_id)
-        .where(ProjectBudget.is_approved == True)
     )
     total_spent = result.scalar() or 0
     
@@ -101,6 +133,11 @@ async def get_dashboard_stats(
             "total_spent": float(total_spent) if total_spent else 0,
             "budget_utilization": float((total_spent / total_budget * 100) if total_budget else 0),
         },
+        # Additional stats for frontend cards
+        "active_projects": active_projects or 0,
+        "behind_schedule": behind_schedule or 0,
+        "on_budget": on_budget or 0,
+        "total_value": float(total_value) if total_value else 0,
     }
 
 
