@@ -59,9 +59,9 @@ class ProjectPayment(Base):
     currency = Column(String(3), default="GHS")
     
     # Payment classification
-    payment_method = Column(Enum(PaymentMethod), nullable=False)
-    payment_type = Column(Enum(PaymentType), nullable=False, index=True)
-    status = Column(Enum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING, index=True)
+    payment_method = Column(Enum(PaymentMethod, values_callable=lambda x: [e.value for e in x]), nullable=False)
+    payment_type = Column(Enum(PaymentType, values_callable=lambda x: [e.value for e in x]), nullable=False, index=True)
+    status = Column(Enum(PaymentStatus, values_callable=lambda x: [e.value for e in x]), nullable=False, default=PaymentStatus.PENDING, index=True)
     
     # Related entities
     milestone_id = Column(PostgreSQLUUID(as_uuid=True))  # Link to milestone

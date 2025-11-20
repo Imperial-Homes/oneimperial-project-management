@@ -47,8 +47,8 @@ class ProjectVariation(Base):
     # Variation details
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
-    variation_type = Column(Enum(VariationType), nullable=False, index=True)
-    status = Column(Enum(VariationStatus), nullable=False, default=VariationStatus.DRAFT, index=True)
+    variation_type = Column(Enum(VariationType, values_callable=lambda x: [e.value for e in x]), nullable=False, index=True)
+    status = Column(Enum(VariationStatus, values_callable=lambda x: [e.value for e in x]), nullable=False, default=VariationStatus.DRAFT, index=True)
     
     # Request information
     requested_by = Column(PostgreSQLUUID(as_uuid=True), nullable=False)
