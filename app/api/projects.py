@@ -84,6 +84,8 @@ async def create_project(
     current_user: UUID = Depends(get_current_user),
 ):
     """Create new project with phases."""
+    from sqlalchemy.orm import selectinload
+    
     # Check if project code exists
     result = await db.execute(
         select(Project).where(Project.project_code == project_data.project_code)
@@ -127,7 +129,7 @@ async def create_project(
     
     db.add(project)
     await db.commit()
-    await db.refresh(project)
+    await db.refresh(project, ["phases"])
     return project
 
 
@@ -164,8 +166,12 @@ async def update_project(
     current_user: UUID = Depends(get_current_user),
 ):
     """Update project."""
+    from sqlalchemy.orm import selectinload
+    
     result = await db.execute(
-        select(Project).where(Project.id == project_id)
+        select(Project)
+        .options(selectinload(Project.phases))
+        .where(Project.id == project_id)
     )
     project = result.scalar_one_or_none()
     
@@ -180,7 +186,7 @@ async def update_project(
     
     project.updated_by = current_user
     await db.commit()
-    await db.refresh(project)
+    await db.refresh(project, ["phases"])
     return project
 
 
@@ -215,8 +221,12 @@ async def update_project_status(
     current_user: UUID = Depends(get_current_user),
 ):
     """Update project status."""
+    from sqlalchemy.orm import selectinload
+    
     result = await db.execute(
-        select(Project).where(Project.id == project_id)
+        select(Project)
+        .options(selectinload(Project.phases))
+        .where(Project.id == project_id)
     )
     project = result.scalar_one_or_none()
     
@@ -232,5 +242,5 @@ async def update_project_status(
     
     project.updated_by = current_user
     await db.commit()
-    await db.refresh(project)
+    await db.refresh(project, ["phases"])
     return project
