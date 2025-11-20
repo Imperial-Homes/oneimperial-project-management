@@ -36,7 +36,9 @@ async def list_projects(
     current_user: UUID = Depends(get_current_user),
 ):
     """List projects with filtering."""
-    query = select(Project)
+    from sqlalchemy.orm import selectinload
+    
+    query = select(Project).options(selectinload(Project.phases))
     
     if status:
         query = query.where(Project.status == status)
@@ -136,8 +138,12 @@ async def get_project(
     current_user: UUID = Depends(get_current_user),
 ):
     """Get project by ID."""
+    from sqlalchemy.orm import selectinload
+    
     result = await db.execute(
-        select(Project).where(Project.id == project_id)
+        select(Project)
+        .options(selectinload(Project.phases))
+        .where(Project.id == project_id)
     )
     project = result.scalar_one_or_none()
     
