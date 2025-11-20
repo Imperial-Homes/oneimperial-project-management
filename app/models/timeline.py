@@ -107,6 +107,7 @@ class TimelineMilestone(Base):
     __tablename__ = "timeline_milestones"
     
     id = Column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    timeline_id = Column(PostgreSQLUUID(as_uuid=True), ForeignKey("project_timelines.id", ondelete="CASCADE"), nullable=True, index=True)
     project_id = Column(PostgreSQLUUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
@@ -123,7 +124,8 @@ class TimelineMilestone(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    project = relationship("Project", back_populates="milestones")
+    timeline = relationship("ProjectTimeline", back_populates="milestones")
+    project = relationship("Project", backref="timeline_milestones")
 
 
 class ResourceUtilization(Base):
