@@ -66,7 +66,7 @@ class TaskResponse(TaskBase):
     completion_date: Optional[date]
     actual_hours: Decimal
     completion_percentage: Decimal
-    dependencies: list[TaskDependencyResponse]
+    dependencies: list[TaskDependencyResponse] = []
     created_at: datetime
     updated_at: datetime
     

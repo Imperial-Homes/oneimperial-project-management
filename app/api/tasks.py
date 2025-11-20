@@ -40,7 +40,7 @@ async def list_tasks(
     current_user: UUID = Depends(get_current_user),
 ):
     """List tasks with filtering."""
-    query = select(Task)
+    query = select(Task).options(selectinload(Task.dependencies))
     
     if project_id:
         query = query.where(Task.project_id == project_id)
@@ -125,7 +125,7 @@ async def create_task(
     
     db.add(task)
     await db.commit()
-    await db.refresh(task)
+    await db.refresh(task, ["dependencies"])
     
     # Send email notification if task is assigned
     if task.assignee_id:
@@ -176,7 +176,9 @@ async def get_task(
 ):
     """Get task by ID."""
     result = await db.execute(
-        select(Task).where(Task.id == task_id)
+        select(Task)
+        .options(selectinload(Task.dependencies))
+        .where(Task.id == task_id)
     )
     task = result.scalar_one_or_none()
     
@@ -198,7 +200,9 @@ async def update_task(
 ):
     """Update task."""
     result = await db.execute(
-        select(Task).where(Task.id == task_id)
+        select(Task)
+        .options(selectinload(Task.dependencies))
+        .where(Task.id == task_id)
     )
     task = result.scalar_one_or_none()
     
@@ -221,7 +225,7 @@ async def update_task(
         task.completion_date = datetime.now().date()
     
     await db.commit()
-    await db.refresh(task)
+    await db.refresh(task, ["dependencies"])
     
     # Send email notification if assignee changed
     if assignee_changed and task.assignee_id:
