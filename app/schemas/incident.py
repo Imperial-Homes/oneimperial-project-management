@@ -62,11 +62,21 @@ class IncidentUpdate(BaseModel):
     follow_up_date: Optional[date] = None
 
 
+class ProjectInfo(BaseModel):
+    """Basic project info for incident response."""
+    id: UUID
+    name: str
+    
+    class Config:
+        from_attributes = True
+
+
 class IncidentResponse(IncidentBase):
     """Schema for incident response."""
     id: UUID
     incident_number: str
     project_id: UUID
+    project: Optional[ProjectInfo] = None
     status: IncidentStatus
     reported_by: Optional[UUID] = None
     root_cause: Optional[str] = None
