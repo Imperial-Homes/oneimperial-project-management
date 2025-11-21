@@ -39,7 +39,9 @@ async def list_certificates(
     current_user: UUID = Depends(get_current_user),
 ):
     """List payment certificates with filtering."""
-    query = select(PaymentCertificate)
+    from sqlalchemy.orm import selectinload
+    
+    query = select(PaymentCertificate).options(selectinload(PaymentCertificate.project))
     
     if project_id:
         query = query.where(PaymentCertificate.project_id == project_id)
