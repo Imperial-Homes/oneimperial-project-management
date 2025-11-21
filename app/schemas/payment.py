@@ -64,11 +64,21 @@ class PaymentCertificateUpdate(BaseModel):
     attachments: Optional[str] = None
 
 
+class ProjectInfo(BaseModel):
+    """Basic project info for certificate response."""
+    id: UUID
+    name: str
+    
+    class Config:
+        from_attributes = True
+
+
 class PaymentCertificateResponse(PaymentCertificateBase):
     """Schema for payment certificate response."""
     id: UUID
     certificate_number: str
     project_id: UUID
+    project: Optional[ProjectInfo] = None
     status: CertificateStatus
     submitted_date: Optional[date] = None
     submitted_by: Optional[UUID] = None
