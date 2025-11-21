@@ -1,4 +1,4 @@
-"""Project Payments API endpoints."""
+"""Payment Certificates API endpoints."""
 
 from datetime import date, datetime
 from math import ceil
@@ -11,64 +11,64 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
 from app.database import get_db
-from app.models.payment import ProjectPayment, PaymentStatus, PaymentType
+from app.models.payment import PaymentCertificate, CertificateStatus, CertificateType
 from app.schemas.payment import (
-    PaymentCreate, PaymentUpdate, PaymentResponse,
-    PaymentList, PaymentReconcile
+    PaymentCertificateCreate, PaymentCertificateUpdate, PaymentCertificateResponse,
+    PaymentCertificateList, PaymentCertificateSubmit, PaymentCertificateApprove,
+    PaymentCertificateReject, PaymentCertificatePayment
 )
 
 router = APIRouter()
 
 
-def generate_payment_number() -> str:
-    """Generate payment number: PAY-YYYYMMDD-XXXX"""
+def generate_certificate_number() -> str:
+    """Generate certificate number: PC-YYYYMMDD-XXXX"""
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    return f"PAY-{timestamp}"
+    return f"PC-{timestamp}"
 
 
-@router.get("", response_model=PaymentList)
-async def list_payments(
+@router.get("", response_model=PaymentCertificateList)
+async def list_certificates(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
     project_id: Optional[UUID] = Query(None),
-    payment_type: Optional[PaymentType] = Query(None),
-    status: Optional[PaymentStatus] = Query(None),
+    certificate_type: Optional[CertificateType] = Query(None),
+    status: Optional[CertificateStatus] = Query(None),
     search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
-    """List payments with filtering."""
-    query = select(ProjectPayment)
+    """List payment certificates with filtering."""
+    query = select(PaymentCertificate)
     
     if project_id:
-        query = query.where(ProjectPayment.project_id == project_id)
+        query = query.where(PaymentCertificate.project_id == project_id)
     
-    if payment_type:
-        query = query.where(ProjectPayment.payment_type == payment_type)
+    if certificate_type:
+        query = query.where(PaymentCertificate.certificate_type == certificate_type)
     
     if status:
-        query = query.where(ProjectPayment.status == status)
+        query = query.where(PaymentCertificate.status == status)
     
     if search:
         query = query.where(
             or_(
-                ProjectPayment.payment_number.ilike(f"%{search}%"),
-                ProjectPayment.reference_number.ilike(f"%{search}%"),
-                ProjectPayment.paid_by_name.ilike(f"%{search}%"),
-                ProjectPayment.received_by_name.ilike(f"%{search}%")
+                PaymentCertificate.certificate_number.ilike(f"%{search}%"),
+                PaymentCertificate.description.ilike(f"%{search}%"),
+                PaymentCertificate.contractor_name.ilike(f"%{search}%")
             )
         )
     
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query)
     
-    query = query.order_by(ProjectPayment.payment_date.desc())
+    query = query.order_by(PaymentCertificate.certificate_date.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
-    payments = result.scalars().all()
+    certificates = result.scalars().all()
     
-    return PaymentList(
-        items=payments,
+    return PaymentCertificateList(
+        items=certificates,
         total=total,
         page=page,
         page_size=page_size,
@@ -76,146 +76,216 @@ async def list_payments(
     )
 
 
-@router.post("", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED)
-async def create_payment(
-    payment_data: PaymentCreate,
+@router.post("", response_model=PaymentCertificateResponse, status_code=status.HTTP_201_CREATED)
+async def create_certificate(
+    certificate_data: PaymentCertificateCreate,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
-    """Create new project payment."""
-    payment = ProjectPayment(
-        payment_number=generate_payment_number(),
-        **payment_data.dict(),
+    """Create new payment certificate."""
+    certificate = PaymentCertificate(
+        certificate_number=generate_certificate_number(),
+        **certificate_data.dict(),
         created_by=current_user
     )
-    db.add(payment)
+    db.add(certificate)
     await db.commit()
-    await db.refresh(payment)
-    return payment
+    await db.refresh(certificate)
+    return certificate
 
 
-@router.get("/{payment_id}", response_model=PaymentResponse)
-async def get_payment(
-    payment_id: UUID,
+@router.get("/{certificate_id}", response_model=PaymentCertificateResponse)
+async def get_certificate(
+    certificate_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
-    """Get payment by ID."""
+    """Get payment certificate by ID."""
     result = await db.execute(
-        select(ProjectPayment).where(ProjectPayment.id == payment_id)
+        select(PaymentCertificate).where(PaymentCertificate.id == certificate_id)
     )
-    payment = result.scalar_one_or_none()
+    certificate = result.scalar_one_or_none()
     
-    if not payment:
+    if not certificate:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payment not found"
+            detail="Payment certificate not found"
         )
     
-    return payment
+    return certificate
 
 
-@router.put("/{payment_id}", response_model=PaymentResponse)
-async def update_payment(
-    payment_id: UUID,
-    payment_data: PaymentUpdate,
+@router.put("/{certificate_id}", response_model=PaymentCertificateResponse)
+async def update_certificate(
+    certificate_id: UUID,
+    certificate_data: PaymentCertificateUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
-    """Update payment."""
+    """Update payment certificate."""
     result = await db.execute(
-        select(ProjectPayment).where(ProjectPayment.id == payment_id)
+        select(PaymentCertificate).where(PaymentCertificate.id == certificate_id)
     )
-    payment = result.scalar_one_or_none()
+    certificate = result.scalar_one_or_none()
     
-    if not payment:
+    if not certificate:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payment not found"
+            detail="Payment certificate not found"
         )
     
-    for field, value in payment_data.dict(exclude_unset=True).items():
-        setattr(payment, field, value)
+    for field, value in certificate_data.dict(exclude_unset=True).items():
+        setattr(certificate, field, value)
     
-    payment.updated_by = current_user
+    certificate.updated_by = current_user
     await db.commit()
-    await db.refresh(payment)
-    return payment
+    await db.refresh(certificate)
+    return certificate
 
 
-@router.delete("/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_payment(
-    payment_id: UUID,
+@router.delete("/{certificate_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_certificate(
+    certificate_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
-    """Delete payment."""
+    """Delete payment certificate."""
     result = await db.execute(
-        select(ProjectPayment).where(ProjectPayment.id == payment_id)
+        select(PaymentCertificate).where(PaymentCertificate.id == certificate_id)
     )
-    payment = result.scalar_one_or_none()
+    certificate = result.scalar_one_or_none()
     
-    if not payment:
+    if not certificate:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payment not found"
+            detail="Payment certificate not found"
         )
     
-    await db.delete(payment)
+    await db.delete(certificate)
     await db.commit()
 
 
-@router.post("/{payment_id}/reconcile", response_model=PaymentResponse)
-async def reconcile_payment(
-    payment_id: UUID,
-    reconcile_data: PaymentReconcile,
+@router.post("/{certificate_id}/submit", response_model=PaymentCertificateResponse)
+async def submit_certificate(
+    certificate_id: UUID,
+    submit_data: PaymentCertificateSubmit,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
-    """Mark payment as reconciled."""
+    """Submit certificate for approval."""
     result = await db.execute(
-        select(ProjectPayment).where(ProjectPayment.id == payment_id)
+        select(PaymentCertificate).where(PaymentCertificate.id == certificate_id)
     )
-    payment = result.scalar_one_or_none()
+    certificate = result.scalar_one_or_none()
     
-    if not payment:
+    if not certificate:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payment not found"
+            detail="Payment certificate not found"
         )
     
-    payment.is_reconciled = True
-    payment.reconciled_date = date.today()
-    payment.reconciled_by = current_user
-    if reconcile_data.notes:
-        payment.notes = reconcile_data.notes
+    certificate.status = CertificateStatus.SUBMITTED
+    certificate.submitted_date = date.today()
+    certificate.submitted_by = current_user
+    if submit_data.notes:
+        certificate.notes = submit_data.notes
     
     await db.commit()
-    await db.refresh(payment)
-    return payment
+    await db.refresh(certificate)
+    return certificate
 
 
-@router.patch("/{payment_id}/status", response_model=PaymentResponse)
-async def update_payment_status(
-    payment_id: UUID,
-    new_status: PaymentStatus,
+@router.post("/{certificate_id}/approve", response_model=PaymentCertificateResponse)
+async def approve_certificate(
+    certificate_id: UUID,
+    approve_data: PaymentCertificateApprove,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
-    """Update payment status."""
+    """Approve certificate."""
     result = await db.execute(
-        select(ProjectPayment).where(ProjectPayment.id == payment_id)
+        select(PaymentCertificate).where(PaymentCertificate.id == certificate_id)
     )
-    payment = result.scalar_one_or_none()
+    certificate = result.scalar_one_or_none()
     
-    if not payment:
+    if not certificate:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payment not found"
+            detail="Payment certificate not found"
         )
     
-    payment.status = new_status
-    payment.updated_by = current_user
+    certificate.status = CertificateStatus.APPROVED
+    certificate.approved_date = date.today()
+    certificate.approved_by = current_user
+    if approve_data.notes:
+        certificate.notes = approve_data.notes
+    
     await db.commit()
-    await db.refresh(payment)
-    return payment
+    await db.refresh(certificate)
+    return certificate
+
+
+@router.post("/{certificate_id}/reject", response_model=PaymentCertificateResponse)
+async def reject_certificate(
+    certificate_id: UUID,
+    reject_data: PaymentCertificateReject,
+    db: AsyncSession = Depends(get_db),
+    current_user: UUID = Depends(get_current_user),
+):
+    """Reject certificate."""
+    result = await db.execute(
+        select(PaymentCertificate).where(PaymentCertificate.id == certificate_id)
+    )
+    certificate = result.scalar_one_or_none()
+    
+    if not certificate:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment certificate not found"
+        )
+    
+    certificate.status = CertificateStatus.REJECTED
+    certificate.rejected_date = date.today()
+    certificate.rejected_by = current_user
+    certificate.rejection_reason = reject_data.rejection_reason
+    
+    await db.commit()
+    await db.refresh(certificate)
+    return certificate
+
+
+@router.post("/{certificate_id}/payment", response_model=PaymentCertificateResponse)
+async def record_payment(
+    certificate_id: UUID,
+    payment_data: PaymentCertificatePayment,
+    db: AsyncSession = Depends(get_db),
+    current_user: UUID = Depends(get_current_user),
+):
+    """Record payment for certificate."""
+    result = await db.execute(
+        select(PaymentCertificate).where(PaymentCertificate.id == certificate_id)
+    )
+    certificate = result.scalar_one_or_none()
+    
+    if not certificate:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment certificate not found"
+        )
+    
+    certificate.payment_date = payment_data.payment_date
+    certificate.payment_reference = payment_data.payment_reference
+    certificate.amount_paid = payment_data.amount_paid
+    
+    # Update status based on payment
+    if certificate.amount_paid >= certificate.net_amount:
+        certificate.status = CertificateStatus.PAID
+    else:
+        certificate.status = CertificateStatus.PARTIALLY_PAID
+    
+    if payment_data.notes:
+        certificate.notes = payment_data.notes
+    
+    await db.commit()
+    await db.refresh(certificate)
+    return certificate

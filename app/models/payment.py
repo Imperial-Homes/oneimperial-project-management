@@ -1,4 +1,4 @@
-"""Project Payment models."""
+"""Payment Certificate models."""
 
 from datetime import date, datetime
 from decimal import Decimal
@@ -12,86 +12,84 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 
 
-class PaymentMethod(str, enum.Enum):
-    """Payment methods"""
-    BANK_TRANSFER = "bank_transfer"
-    CHECK = "check"
-    CASH = "cash"
-    MOBILE_MONEY = "mobile_money"
-    WIRE_TRANSFER = "wire_transfer"
-    CREDIT_CARD = "credit_card"
+class CertificateStatus(str, enum.Enum):
+    """Payment certificate statuses"""
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    PAID = "paid"
+    PARTIALLY_PAID = "partially_paid"
 
 
-class PaymentType(str, enum.Enum):
-    """Payment types"""
+class CertificateType(str, enum.Enum):
+    """Payment certificate types"""
+    INTERIM = "interim"
     ADVANCE = "advance"
-    MILESTONE = "milestone"
-    PROGRESS = "progress"
     RETENTION = "retention"
     FINAL = "final"
     VARIATION = "variation"
 
 
-class PaymentStatus(str, enum.Enum):
-    """Payment statuses"""
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-    REFUNDED = "refunded"
-
-
-class ProjectPayment(Base):
-    """Project Payment model for tracking payments made or received for projects."""
+class PaymentCertificate(Base):
+    """Payment Certificate model for tracking payment certificates in construction projects."""
     
-    __tablename__ = "project_payments"
+    __tablename__ = "payment_certificates"
     
     id = Column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
-    payment_number = Column(String(50), unique=True, nullable=False, index=True)
+    certificate_number = Column(String(50), unique=True, nullable=False, index=True)
     
     # Project link
     project_id = Column(PostgreSQLUUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     
-    # Payment details
-    payment_date = Column(Date, nullable=False, index=True)
-    amount = Column(Numeric(15, 2), nullable=False)
+    # Certificate details
+    certificate_date = Column(Date, nullable=False, index=True)
+    certificate_type = Column(Enum(CertificateType, values_callable=lambda x: [e.value for e in x]), nullable=False, index=True)
+    status = Column(Enum(CertificateStatus, values_callable=lambda x: [e.value for e in x]), nullable=False, default=CertificateStatus.DRAFT, index=True)
+    
+    # Financial details
+    gross_amount = Column(Numeric(15, 2), nullable=False)  # Total work value
+    previous_amount = Column(Numeric(15, 2), default=0)  # Previous certificates total
+    current_amount = Column(Numeric(15, 2), nullable=False)  # This certificate amount
+    retention_percentage = Column(Numeric(5, 2), default=5.0)  # Retention %
+    retention_amount = Column(Numeric(15, 2), default=0)  # Retention deducted
+    net_amount = Column(Numeric(15, 2), nullable=False)  # Amount payable
     currency = Column(String(3), default="GHS")
     
-    # Payment classification
-    payment_method = Column(Enum(PaymentMethod, values_callable=lambda x: [e.value for e in x]), nullable=False)
-    payment_type = Column(Enum(PaymentType, values_callable=lambda x: [e.value for e in x]), nullable=False, index=True)
-    status = Column(Enum(PaymentStatus, values_callable=lambda x: [e.value for e in x]), nullable=False, default=PaymentStatus.PENDING, index=True)
+    # Work period
+    period_from = Column(Date)
+    period_to = Column(Date)
     
     # Related entities
     milestone_id = Column(PostgreSQLUUID(as_uuid=True))  # Link to milestone
-    variation_id = Column(PostgreSQLUUID(as_uuid=True))  # Link to variation if variation payment
-    invoice_reference = Column(String(100))
+    variation_id = Column(PostgreSQLUUID(as_uuid=True))  # Link to variation
     
-    # Payment tracking
-    reference_number = Column(String(100), index=True)
-    transaction_id = Column(String(100))
+    # Certificate details
     description = Column(Text)
+    work_completed = Column(Text)  # Description of work completed
     notes = Column(Text)
     
-    # Parties involved
-    paid_by = Column(PostgreSQLUUID(as_uuid=True))  # Who made the payment
-    paid_by_name = Column(String(255))  # Client/contractor name
-    received_by = Column(PostgreSQLUUID(as_uuid=True))  # Who received the payment
-    received_by_name = Column(String(255))
+    # Approval workflow
+    submitted_date = Column(Date)
+    submitted_by = Column(PostgreSQLUUID(as_uuid=True))
+    approved_date = Column(Date)
+    approved_by = Column(PostgreSQLUUID(as_uuid=True))
+    rejected_date = Column(Date)
+    rejected_by = Column(PostgreSQLUUID(as_uuid=True))
+    rejection_reason = Column(Text)
+    
+    # Payment tracking
+    payment_date = Column(Date)
+    payment_reference = Column(String(100))
+    amount_paid = Column(Numeric(15, 2), default=0)
+    
+    # Parties
+    consultant_name = Column(String(255))  # Certifying consultant
+    contractor_name = Column(String(255))  # Contractor
+    client_name = Column(String(255))  # Client
     
     # Documentation
-    receipt_url = Column(String(500))
     attachments = Column(Text)  # JSON string of file URLs
-    
-    # Bank details (if applicable)
-    bank_name = Column(String(255))
-    account_number = Column(String(100))
-    
-    # Reconciliation
-    is_reconciled = Column(Boolean, default=False)
-    reconciled_date = Column(Date)
-    reconciled_by = Column(PostgreSQLUUID(as_uuid=True))
     
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -100,4 +98,4 @@ class ProjectPayment(Base):
     updated_by = Column(PostgreSQLUUID(as_uuid=True))
     
     # Relationship
-    project = relationship("Project", backref="payments")
+    project = relationship("Project", backref="payment_certificates")
