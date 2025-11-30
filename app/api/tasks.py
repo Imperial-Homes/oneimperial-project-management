@@ -275,8 +275,11 @@ async def delete_task(
     current_user: UUID = Depends(get_current_user),
 ):
     """Delete task."""
+    # Load task with relationships to handle cascades properly
     result = await db.execute(
-        select(Task).where(Task.id == task_id)
+        select(Task)
+        .options(selectinload(Task.dependencies))
+        .where(Task.id == task_id)
     )
     task = result.scalar_one_or_none()
     
@@ -286,5 +289,6 @@ async def delete_task(
             detail="Task not found"
         )
     
+    # Delete the task (cascade will handle dependencies)
     await db.delete(task)
     await db.commit()
