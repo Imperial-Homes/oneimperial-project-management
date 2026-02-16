@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     HOST: str = "0.0.0.0"
     PORT: int = 8005
+    ENVIRONMENT: str = "development"
     
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://projectmgmt:projectmgmt@localhost:5432/project_mgmt_db"

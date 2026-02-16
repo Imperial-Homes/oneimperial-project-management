@@ -1,7 +1,7 @@
 """Main FastAPI application."""
 
 from fastapi import FastAPI, Request, status
-# from fastapi.middleware.cors import CORSMiddleware  # Disabled - NGINX handles CORS
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -48,14 +48,16 @@ app = FastAPI(
     ]
 )
 
-# CORS middleware - DISABLED (NGINX handles CORS to prevent duplicate headers)
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=settings.cors_origins_list,
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+
+# CORS middleware - ENABLED (NGINX configuration is missing headers)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list or ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Include routers
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
@@ -83,20 +85,6 @@ async def root():
     }
 
 
-@app.options("/{full_path:path}")
-async def options_handler(full_path: str):
-    """
-    Handle OPTIONS preflight requests for CORS.
-    Since CORSMiddleware is disabled (NGINX handles CORS),
-    we need to explicitly allow OPTIONS requests.
-    """
-    return JSONResponse(
-        content={"message": "OK"},
-        status_code=200,
-        headers={
-            "Allow": "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-        }
-    )
 
 
 @app.get("/health")

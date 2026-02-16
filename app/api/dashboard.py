@@ -181,7 +181,7 @@ async def get_recent_activity(
         "recent_tasks": [
             {
                 "id": str(task.id),
-                "title": task.title,
+                "title": task.name,
                 "status": task.status,
                 "priority": task.priority,
                 "project_id": str(task.project_id),
