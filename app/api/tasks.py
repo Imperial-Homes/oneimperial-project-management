@@ -16,6 +16,7 @@ from app.database import get_db
 from app.models import Task, TaskDependency, Project
 from app.schemas import TaskCreate, TaskUpdate, TaskResponse, TaskList
 from app.config import Settings
+from app.utils.notification_service import notification_service
 
 router = APIRouter()
 settings = Settings()
@@ -164,6 +165,15 @@ async def create_task(
         except Exception as e:
             # Log error but don't fail task creation
             print(f"Error sending task assignment email: {str(e)}")
+            
+        # Send in-app notification
+        notification_service.send_notification(
+            user_id=task.assignee_id,
+            title="New Task Assigned",
+            message=f"You have been assigned to task: '{task.name}'",
+            type="info",
+            link=f"/project-management/tasks/{task.id}"
+        )
     
     return task
 
@@ -264,6 +274,25 @@ async def update_task(
         except Exception as e:
             # Log error but don't fail task update
             print(f"Error sending task assignment email: {str(e)}")
+            
+        # Send in-app notification
+        notification_service.send_notification(
+            user_id=task.assignee_id,
+            title="Task Reassigned",
+            message=f"You have been assigned to task: '{task.name}'",
+            type="info",
+            link=f"/project-management/tasks/{task.id}"
+        )
+    elif task.assignee_id and not assignee_changed:
+        # Check if we should notify about status change or anything else significant
+        # A bit generic but gives feedback on updates
+        notification_service.send_notification(
+            user_id=task.assignee_id,
+            title="Task Updated",
+            message=f"Task '{task.name}' has been updated.",
+            type="info",
+            link=f"/project-management/tasks/{task.id}"
+        )
     
     return task
 

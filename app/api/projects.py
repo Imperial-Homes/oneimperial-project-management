@@ -13,6 +13,7 @@ from app.core.deps import get_current_user
 from app.database import get_db
 from app.models import Project, ProjectPhase
 from app.schemas import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectList
+from app.utils.notification_service import notification_service
 
 router = APIRouter()
 
@@ -130,6 +131,17 @@ async def create_project(
     db.add(project)
     await db.commit()
     await db.refresh(project, ["phases"])
+    
+    # Notify manager if assigned
+    if project.manager_id:
+        notification_service.send_notification(
+            user_id=project.manager_id,
+            title="New Project Assigned",
+            message=f"You have been assigned as manager for project: '{project.name}'",
+            type="info",
+            link="/project-management/projects"
+        )
+        
     return project
 
 
@@ -181,12 +193,25 @@ async def update_project(
             detail="Project not found"
         )
     
+    old_manager_id = project.manager_id
+    
     for field, value in project_data.dict(exclude_unset=True).items():
         setattr(project, field, value)
     
     project.updated_by = current_user
     await db.commit()
     await db.refresh(project, ["phases"])
+    
+    # Notify new manager if reassigned
+    if project.manager_id and project.manager_id != old_manager_id:
+        notification_service.send_notification(
+            user_id=project.manager_id,
+            title="Project Reassigned",
+            message=f"You have been assigned as manager for project: '{project.name}'",
+            type="info",
+            link="/project-management/projects"
+        )
+    
     return project
 
 
@@ -243,4 +268,15 @@ async def update_project_status(
     project.updated_by = current_user
     await db.commit()
     await db.refresh(project, ["phases"])
+    
+    # Notify manager of status change
+    if project.manager_id:
+        notification_service.send_notification(
+            user_id=project.manager_id,
+            title="Project Status Updated",
+            message=f"Status of project '{project.name}' changed to {new_status}",
+            type="success" if new_status == "completed" else "info",
+            link="/project-management/projects"
+        )
+        
     return project

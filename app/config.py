@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     CRM_SERVICE_URL: str = "http://localhost:8004"
     PROCUREMENT_SERVICE_URL: str = "http://localhost:8006"
     FINANCE_SERVICE_URL: str = "http://localhost:8003"
+    NOTIFICATION_SERVICE_URL: str = "http://hr-payroll:8002/notifications"
     
     # Currency
     DEFAULT_CURRENCY: str = "GHS"
