@@ -39,7 +39,7 @@ ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONPATH=/app
 
 # Expose port
-EXPOSE 8005
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
