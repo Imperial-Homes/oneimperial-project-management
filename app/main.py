@@ -1,5 +1,7 @@
 """Main FastAPI application."""
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -23,10 +25,32 @@ from app.api import (
     resource_utilization,
 )
 from app.config import settings
+from app.core.logging import configure_logging, RequestIDMiddleware
 
 logger = logging.getLogger(__name__)
+configure_logging("INFO", service_name=settings.APP_NAME)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup and graceful shutdown — dispose DB pool and Redis connections."""
+    logger.info("Service starting up")
+    yield
+    logger.info("Service shutting down — draining connections")
+    from app.database import engine
+    await engine.dispose()
+    redis_url = getattr(settings, 'REDIS_URL', None)
+    if redis_url:
+        import redis.asyncio as aioredis
+        try:
+            client = aioredis.from_url(redis_url)
+            await client.aclose()
+        except Exception:
+            pass
+    logger.info("Shutdown complete")
+
 
 app = FastAPI(
+    lifespan=lifespan,
     title=settings.APP_NAME,
     version=settings.VERSION,
     description="Construction Project Management Service for OneImperial ERP",
@@ -49,14 +73,19 @@ app = FastAPI(
 )
 
 
-# CORS middleware - ENABLED (NGINX configuration is missing headers)
+# CORS middleware — belt-and-suspenders for direct-port access in development.
+# In production all traffic flows through NGINX which enforces the origin allowlist
+# via the $cors_origin map and proxy_hide_header strips upstream CORS headers.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list or ["*"],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Outermost middleware — runs first on request, last on response.
+# Generates X-Request-ID and logs method/path/status/latency for every request.
+app.add_middleware(RequestIDMiddleware)
 
 
 # Include routers
@@ -89,8 +118,45 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy"}
+    """Health check — verifies DB and Redis connectivity. Returns 503 if either is down."""
+    from sqlalchemy import text
+    import redis.asyncio as aioredis
+    from app.database import engine
+
+    checks = {}
+    healthy = True
+
+    # --- Database ---
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        checks["db"] = "ok"
+    except Exception as exc:
+        checks["db"] = f"error: {exc}"
+        healthy = False
+
+    # --- Redis ---
+    redis_url = settings.REDIS_URL
+    if redis_url:
+        try:
+            client = aioredis.from_url(redis_url, socket_connect_timeout=2)
+            await client.ping()
+            await client.aclose()
+            checks["cache"] = "ok"
+        except Exception as exc:
+            checks["cache"] = f"error: {exc}"
+            healthy = False
+    else:
+        checks["cache"] = "not_configured"
+
+    return JSONResponse(
+        status_code=200 if healthy else 503,
+        content={
+            "status": "healthy" if healthy else "unhealthy",
+            "service": settings.APP_NAME,
+            "checks": checks,
+        },
+    )
 
 
 # Global exception handlers

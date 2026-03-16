@@ -1,7 +1,7 @@
 """Notification service for Project Management."""
 
 import logging
-import requests
+import httpx
 from typing import Optional
 from uuid import UUID
 from app.config import settings
@@ -33,7 +33,7 @@ class NotificationService:
                 "link": link
             }
             
-            response = requests.post(
+            response = httpx.post(
                 self.base_url,
                 json=payload,
                 timeout=5

@@ -1,12 +1,13 @@
 """Task API endpoints."""
 
+import logging
 from datetime import datetime
 from math import ceil
 from typing import Optional
 from uuid import UUID
 import httpx
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import BackgroundTasks, APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -20,6 +21,7 @@ from app.utils.notification_service import notification_service
 
 router = APIRouter()
 settings = Settings()
+logger = logging.getLogger(__name__)
 
 
 def generate_task_code() -> str:
@@ -83,6 +85,7 @@ async def list_tasks(
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(
     task_data: TaskCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
@@ -153,28 +156,30 @@ async def create_task(
                     
                     if assignee_email:
                         task_url = f"https://erp.imperialhomesghana.com/dashboard/project-management/tasks/{task.id}"
-                        email_service.send_task_assigned_email(
+                        background_tasks.add_task(
+                            email_service.send_task_assigned_email,
                             to_email=assignee_email,
                             assignee_name=assignee_name or "Team Member",
                             task_title=task.name,
                             project_name=project_name,
                             due_date=task.due_date.strftime("%Y-%m-%d") if task.due_date else "Not set",
                             priority=task.priority or "medium",
-                            task_url=task_url
+                            task_url=task_url,
                         )
         except Exception as e:
             # Log error but don't fail task creation
-            print(f"Error sending task assignment email: {str(e)}")
-            
+            logger.warning("Failed to send task assignment email", extra={"error": str(e)})
+
         # Send in-app notification
-        notification_service.send_notification(
+        background_tasks.add_task(
+            notification_service.send_notification,
             user_id=task.assignee_id,
             title="New Task Assigned",
             message=f"You have been assigned to task: '{task.name}'",
             type="info",
-            link=f"/project-management/tasks/{task.id}"
+            link=f"/project-management/tasks/{task.id}",
         )
-    
+
     return task
 
 
@@ -205,6 +210,7 @@ async def get_task(
 async def update_task(
     task_id: UUID,
     task_data: TaskUpdate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
@@ -262,36 +268,37 @@ async def update_task(
                     
                     if assignee_email:
                         task_url = f"https://erp.imperialhomesghana.com/dashboard/project-management/tasks/{task.id}"
-                        email_service.send_task_assigned_email(
+                        background_tasks.add_task(
+                            email_service.send_task_assigned_email,
                             to_email=assignee_email,
                             assignee_name=assignee_name or "Team Member",
                             task_title=task.name,
                             project_name=project_name,
                             due_date=task.due_date.strftime("%Y-%m-%d") if task.due_date else "Not set",
                             priority=task.priority or "medium",
-                            task_url=task_url
+                            task_url=task_url,
                         )
         except Exception as e:
             # Log error but don't fail task update
-            print(f"Error sending task assignment email: {str(e)}")
-            
+            logger.warning("Failed to send task assignment email", extra={"error": str(e)})
+
         # Send in-app notification
-        notification_service.send_notification(
+        background_tasks.add_task(
+            notification_service.send_notification,
             user_id=task.assignee_id,
             title="Task Reassigned",
             message=f"You have been assigned to task: '{task.name}'",
             type="info",
-            link=f"/project-management/tasks/{task.id}"
+            link=f"/project-management/tasks/{task.id}",
         )
     elif task.assignee_id and not assignee_changed:
-        # Check if we should notify about status change or anything else significant
-        # A bit generic but gives feedback on updates
-        notification_service.send_notification(
+        background_tasks.add_task(
+            notification_service.send_notification,
             user_id=task.assignee_id,
             title="Task Updated",
             message=f"Task '{task.name}' has been updated.",
             type="info",
-            link=f"/project-management/tasks/{task.id}"
+            link=f"/project-management/tasks/{task.id}",
         )
     
     return task

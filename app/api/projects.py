@@ -5,7 +5,7 @@ from math import ceil
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import BackgroundTasks, APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -81,6 +81,7 @@ async def list_projects(
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(
     project_data: ProjectCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
@@ -134,14 +135,15 @@ async def create_project(
     
     # Notify manager if assigned
     if project.manager_id:
-        notification_service.send_notification(
+        background_tasks.add_task(
+            notification_service.send_notification,
             user_id=project.manager_id,
             title="New Project Assigned",
             message=f"You have been assigned as manager for project: '{project.name}'",
             type="info",
-            link="/project-management/projects"
+            link="/project-management/projects",
         )
-        
+
     return project
 
 
@@ -174,6 +176,7 @@ async def get_project(
 async def update_project(
     project_id: UUID,
     project_data: ProjectUpdate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
@@ -204,14 +207,15 @@ async def update_project(
     
     # Notify new manager if reassigned
     if project.manager_id and project.manager_id != old_manager_id:
-        notification_service.send_notification(
+        background_tasks.add_task(
+            notification_service.send_notification,
             user_id=project.manager_id,
             title="Project Reassigned",
             message=f"You have been assigned as manager for project: '{project.name}'",
             type="info",
-            link="/project-management/projects"
+            link="/project-management/projects",
         )
-    
+
     return project
 
 
@@ -242,6 +246,7 @@ async def archive_project(
 async def update_project_status(
     project_id: UUID,
     new_status: str,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
@@ -271,12 +276,13 @@ async def update_project_status(
     
     # Notify manager of status change
     if project.manager_id:
-        notification_service.send_notification(
+        background_tasks.add_task(
+            notification_service.send_notification,
             user_id=project.manager_id,
             title="Project Status Updated",
             message=f"Status of project '{project.name}' changed to {new_status}",
             type="success" if new_status == "completed" else "info",
-            link="/project-management/projects"
+            link="/project-management/projects",
         )
-        
+
     return project

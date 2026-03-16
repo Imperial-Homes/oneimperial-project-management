@@ -2,7 +2,7 @@
 
 import logging
 from typing import Optional
-import requests
+import httpx
 
 from app.config import Settings
 
@@ -59,7 +59,7 @@ class EmailService:
             if text_content:
                 data["text"] = text_content
             
-            response = requests.post(
+            response = httpx.post(
                 self.base_url,
                 auth=("api", self.api_key),
                 data=data,

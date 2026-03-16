@@ -17,10 +17,18 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://projectmgmt:projectmgmt@localhost:5432/project_mgmt_db"
     
-    # JWT Authentication
-    JWT_SECRET: str = "your-secret-key-change-in-production"
-    JWT_ALGORITHM: str = "HS256"
+    # JWT Authentication — RS256 public-key verification only.
+    # Tokens are signed by user-management with its private key.
+    # This service only needs the public key to verify; it cannot issue tokens.
+    JWT_PUBLIC_KEY_B64: str = ""
+    JWT_ALGORITHM: str = "RS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    @property
+    def jwt_public_key(self) -> str:
+        """Decode the base64-encoded PEM public key."""
+        import base64
+        return base64.b64decode(self.JWT_PUBLIC_KEY_B64).decode("utf-8")
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/4"
