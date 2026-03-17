@@ -36,7 +36,7 @@ class NotificationService:
             response = httpx.post(
                 self.base_url,
                 json=payload,
-                timeout=5
+                timeout=httpx.Timeout(5.0, connect=2.0)
             )
             
             if response.status_code == 201:

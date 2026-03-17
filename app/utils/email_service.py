@@ -3,6 +3,7 @@
 import logging
 from typing import Optional
 import httpx
+from tenacity import Retrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.config import Settings
 
@@ -59,12 +60,19 @@ class EmailService:
             if text_content:
                 data["text"] = text_content
             
-            response = httpx.post(
-                self.base_url,
-                auth=("api", self.api_key),
-                data=data,
-                timeout=10
-            )
+            for _attempt in Retrying(
+                retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
+                stop=stop_after_attempt(3),
+                wait=wait_exponential(multiplier=1, min=1, max=4),
+                reraise=True,
+            ):
+                with _attempt:
+                    response = httpx.post(
+                        self.base_url,
+                        auth=("api", self.api_key),
+                        data=data,
+                        timeout=httpx.Timeout(10.0, connect=5.0),
+                    )
             
             if response.status_code == 200:
                 logger.info(f"Email sent successfully to {to_email}")

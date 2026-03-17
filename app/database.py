@@ -13,6 +13,7 @@ from app.config import settings
 _CONNECT_ARGS = {
     "timeout": 10,
     "command_timeout": 30,
+    "statement_cache_size": 0,  # PgBouncer transaction mode: disable asyncpg prepared statement cache
     "server_settings": {
         "statement_timeout": "30000",  # 30 s — kills runaway queries
         "lock_timeout": "10000",       # 10 s — avoids lock convoys
