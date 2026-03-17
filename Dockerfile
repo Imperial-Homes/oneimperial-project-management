@@ -41,7 +41,8 @@ ENV PYTHONPATH=/app
 # Run as non-root for security
 RUN useradd -m -u 1000 appuser \
     && chown -R appuser:appuser /app \
-    && chown -R appuser:appuser /root/.local 2>/dev/null || true
+    && chown -R appuser:appuser /root/.local 2>/dev/null || true \
+    && chmod 755 /root
 USER appuser
 
 # Expose port
