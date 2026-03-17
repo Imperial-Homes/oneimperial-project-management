@@ -4,6 +4,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+@pytest.mark.unit
+
+
 @pytest.mark.asyncio
 async def test_create_project(client: TestClient, auth_headers: dict):
     """Test creating a project."""
@@ -40,6 +43,9 @@ async def test_create_project(client: TestClient, auth_headers: dict):
     assert data["is_active"] is True
 
 
+@pytest.mark.unit
+
+
 @pytest.mark.asyncio
 async def test_list_projects(client: TestClient, auth_headers: dict):
     """Test listing projects."""
@@ -64,6 +70,9 @@ async def test_list_projects(client: TestClient, auth_headers: dict):
     assert data["total"] == 3
 
 
+@pytest.mark.unit
+
+
 @pytest.mark.asyncio
 async def test_get_project(client: TestClient, auth_headers: dict):
     """Test getting a specific project."""
@@ -85,6 +94,9 @@ async def test_get_project(client: TestClient, auth_headers: dict):
     data = response.json()
     assert data["project_code"] == "PRJ-GET-TEST"
     assert data["name"] == "Test Project"
+
+
+@pytest.mark.unit
 
 
 @pytest.mark.asyncio
