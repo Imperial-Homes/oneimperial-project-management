@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     CRM_SERVICE_URL: str = "http://crm:8080"
     PROCUREMENT_SERVICE_URL: str = "http://procurement-inventory:8080"
     FINANCE_SERVICE_URL: str = "http://finance-accounting:8080"
-    NOTIFICATION_SERVICE_URL: str = "http://hr-payroll:8080/notifications"
+    NOTIFICATION_SERVICE_URL: str = "http://user-management:8080/notifications"
 
     # Currency
     DEFAULT_CURRENCY: str = "GHS"
