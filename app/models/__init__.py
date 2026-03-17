@@ -16,6 +16,9 @@ from app.models.timeline import (
     TimelineMilestone,
     ResourceUtilization,
 )
+from app.models.site_visit import SiteVisit
+from app.models.progress_report import ProgressReport
+from app.models.handover_pack import HandoverPack
 
 __all__ = [
     "Project",
@@ -37,4 +40,7 @@ __all__ = [
     "TaskProgress",
     "TimelineMilestone",
     "ResourceUtilization",
+    "SiteVisit",
+    "ProgressReport",
+    "HandoverPack",
 ]

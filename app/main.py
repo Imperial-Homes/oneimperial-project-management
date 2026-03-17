@@ -23,6 +23,9 @@ from app.api import (
     timeline,
     progress,
     resource_utilization,
+    site_visits,
+    progress_reports,
+    handover_packs,
 )
 from app.config import settings
 from app.core.logging import configure_logging, RequestIDMiddleware
@@ -102,6 +105,9 @@ app.include_router(incidents.router, prefix="/incidents", tags=["Incidents"])
 app.include_router(timeline.router, prefix="/timelines", tags=["Timeline & Gantt"])
 app.include_router(progress.router, prefix="/progress", tags=["Progress Tracking"])
 app.include_router(resource_utilization.router, prefix="/utilization", tags=["Resource Utilization"])
+app.include_router(site_visits.router, prefix="/site-visits", tags=["Site Visits"])
+app.include_router(progress_reports.router, prefix="/progress-reports", tags=["Progress Reports"])
+app.include_router(handover_packs.router, prefix="/handover-packs", tags=["Handover Packs"])
 
 
 @app.get("/")
