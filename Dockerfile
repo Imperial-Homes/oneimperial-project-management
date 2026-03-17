@@ -35,8 +35,14 @@ COPY . .
 RUN chmod +x scripts/*.sh 2>/dev/null || true
 
 # Set Python path
-ENV PATH=/root/.local/bin:$PATH
+ENV PATH=/home/appuser/.local/bin:/root/.local/bin:$PATH
 ENV PYTHONPATH=/app
+
+# Run as non-root for security
+RUN useradd -m -u 1000 appuser \
+    && chown -R appuser:appuser /app \
+    && chown -R appuser:appuser /root/.local 2>/dev/null || true
+USER appuser
 
 # Expose port
 EXPOSE 8080
