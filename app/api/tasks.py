@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_user
+from app.core.resilience import get_breaker
 from app.database import get_db
 from app.models import Task, TaskDependency, Project
 from app.schemas import TaskCreate, TaskUpdate, TaskResponse, TaskList
@@ -135,37 +136,65 @@ async def create_task(
     if task.assignee_id:
         try:
             from app.utils.email_service import email_service
-            
+
             # Get project details
             project_result = await db.execute(
                 select(Project).where(Project.id == task.project_id)
             )
             project = project_result.scalar_one_or_none()
             project_name = project.name if project else "Unknown Project"
-            
-            # Get assignee email from user service
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{settings.USER_SERVICE_URL}/users/{task.assignee_id}",
-                    timeout=5.0
-                )
-                if response.status_code == 200:
-                    user_data = response.json()
-                    assignee_email = user_data.get("email")
-                    assignee_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
-                    
-                    if assignee_email:
-                        task_url = f"https://erp.imperialhomesghana.com/dashboard/project-management/tasks/{task.id}"
-                        background_tasks.add_task(
-                            email_service.send_task_assigned_email,
-                            to_email=assignee_email,
-                            assignee_name=assignee_name or "Team Member",
-                            task_title=task.name,
-                            project_name=project_name,
-                            due_date=task.due_date.strftime("%Y-%m-%d") if task.due_date else "Not set",
-                            priority=task.priority or "medium",
-                            task_url=task_url,
+
+            # Get assignee email from user service — guarded by circuit breaker.
+            # If user-management is down or slow, the breaker opens after 3
+            # consecutive failures and skips all further calls for 30 s.
+            breaker = get_breaker("user-management")
+            if breaker.is_available():
+                try:
+                    async with httpx.AsyncClient(
+                        timeout=httpx.Timeout(5.0, connect=2.0)
+                    ) as client:
+                        response = await client.get(
+                            f"{settings.USER_SERVICE_URL}/users/{task.assignee_id}"
                         )
+                    if response.status_code == 200:
+                        breaker.record_success()
+                        user_data = response.json()
+                        assignee_email = user_data.get("email")
+                        assignee_name = (
+                            f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+                        )
+                        if assignee_email:
+                            task_url = (
+                                f"https://erp.imperialhomesghana.com/dashboard"
+                                f"/project-management/tasks/{task.id}"
+                            )
+                            background_tasks.add_task(
+                                email_service.send_task_assigned_email,
+                                to_email=assignee_email,
+                                assignee_name=assignee_name or "Team Member",
+                                task_title=task.name,
+                                project_name=project_name,
+                                due_date=task.due_date.strftime("%Y-%m-%d") if task.due_date else "Not set",
+                                priority=task.priority or "medium",
+                                task_url=task_url,
+                            )
+                    else:
+                        breaker.record_failure()
+                        logger.warning(
+                            "User service returned non-200",
+                            extra={"status_code": response.status_code, "user_id": str(task.assignee_id)},
+                        )
+                except (httpx.TransportError, httpx.TimeoutException) as exc:
+                    breaker.record_failure()
+                    logger.warning(
+                        "User service unreachable — skipping task assignment email",
+                        extra={"error": str(exc)},
+                    )
+            else:
+                logger.warning(
+                    "User service circuit open — skipping task assignment email",
+                    extra={"user_id": str(task.assignee_id)},
+                )
         except Exception as e:
             # Log error but don't fail task creation
             logger.warning("Failed to send task assignment email", extra={"error": str(e)})
@@ -247,37 +276,63 @@ async def update_task(
     if assignee_changed and task.assignee_id:
         try:
             from app.utils.email_service import email_service
-            
+
             # Get project details
             project_result = await db.execute(
                 select(Project).where(Project.id == task.project_id)
             )
             project = project_result.scalar_one_or_none()
             project_name = project.name if project else "Unknown Project"
-            
-            # Get assignee email from user service
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{settings.USER_SERVICE_URL}/users/{task.assignee_id}",
-                    timeout=5.0
-                )
-                if response.status_code == 200:
-                    user_data = response.json()
-                    assignee_email = user_data.get("email")
-                    assignee_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
-                    
-                    if assignee_email:
-                        task_url = f"https://erp.imperialhomesghana.com/dashboard/project-management/tasks/{task.id}"
-                        background_tasks.add_task(
-                            email_service.send_task_assigned_email,
-                            to_email=assignee_email,
-                            assignee_name=assignee_name or "Team Member",
-                            task_title=task.name,
-                            project_name=project_name,
-                            due_date=task.due_date.strftime("%Y-%m-%d") if task.due_date else "Not set",
-                            priority=task.priority or "medium",
-                            task_url=task_url,
+
+            # Get assignee email from user service — circuit breaker protected.
+            breaker = get_breaker("user-management")
+            if breaker.is_available():
+                try:
+                    async with httpx.AsyncClient(
+                        timeout=httpx.Timeout(5.0, connect=2.0)
+                    ) as client:
+                        response = await client.get(
+                            f"{settings.USER_SERVICE_URL}/users/{task.assignee_id}"
                         )
+                    if response.status_code == 200:
+                        breaker.record_success()
+                        user_data = response.json()
+                        assignee_email = user_data.get("email")
+                        assignee_name = (
+                            f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+                        )
+                        if assignee_email:
+                            task_url = (
+                                f"https://erp.imperialhomesghana.com/dashboard"
+                                f"/project-management/tasks/{task.id}"
+                            )
+                            background_tasks.add_task(
+                                email_service.send_task_assigned_email,
+                                to_email=assignee_email,
+                                assignee_name=assignee_name or "Team Member",
+                                task_title=task.name,
+                                project_name=project_name,
+                                due_date=task.due_date.strftime("%Y-%m-%d") if task.due_date else "Not set",
+                                priority=task.priority or "medium",
+                                task_url=task_url,
+                            )
+                    else:
+                        breaker.record_failure()
+                        logger.warning(
+                            "User service returned non-200",
+                            extra={"status_code": response.status_code, "user_id": str(task.assignee_id)},
+                        )
+                except (httpx.TransportError, httpx.TimeoutException) as exc:
+                    breaker.record_failure()
+                    logger.warning(
+                        "User service unreachable — skipping reassignment email",
+                        extra={"error": str(exc)},
+                    )
+            else:
+                logger.warning(
+                    "User service circuit open — skipping reassignment email",
+                    extra={"user_id": str(task.assignee_id)},
+                )
         except Exception as e:
             # Log error but don't fail task update
             logger.warning("Failed to send task assignment email", extra={"error": str(e)})
