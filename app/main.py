@@ -28,6 +28,7 @@ from app.api import (
     variations,
 )
 from app.config import settings
+from prometheus_fastapi_instrumentator import Instrumentator
 from app.core.logging import RequestIDMiddleware, configure_logging
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,9 @@ app.include_router(resource_utilization.router, prefix="/utilization", tags=["Re
 app.include_router(site_visits.router, prefix="/site-visits", tags=["Site Visits"])
 app.include_router(progress_reports.router, prefix="/progress-reports", tags=["Progress Reports"])
 app.include_router(handover_packs.router, prefix="/handover-packs", tags=["Handover Packs"])
+
+# Prometheus RED metrics — exposed at /metrics for Prometheus scraping
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 
 @app.get("/")

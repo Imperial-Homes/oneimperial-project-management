@@ -34,3 +34,4 @@ python-dotenv==1.0.0
 # Email
 requests==2.31.0
 python-json-logger==2.0.7
+prometheus-fastapi-instrumentator==6.1.0
