@@ -35,14 +35,14 @@ COPY . .
 RUN chmod +x scripts/*.sh 2>/dev/null || true
 
 # Set Python path
-ENV PATH=/home/appuser/.local/bin:/root/.local/bin:$PATH
 ENV PYTHONPATH=/app
 
 # Run as non-root for security
+# Run as non-root — copy installed packages to appuser home so Python can find them
 RUN useradd -m -u 1000 appuser \
-    && chown -R appuser:appuser /app \
-    && chown -R appuser:appuser /root/.local 2>/dev/null || true \
-    && chmod 755 /root
+    && cp -r /root/.local /home/appuser/.local \
+    && chown -R appuser:appuser /app /home/appuser/.local
+ENV PATH=/home/appuser/.local/bin:$PATH
 USER appuser
 
 # Expose port
