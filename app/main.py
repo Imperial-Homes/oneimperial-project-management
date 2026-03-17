@@ -111,14 +111,20 @@ async def root():
 
 
 @app.get("/health")
-async def health_check():
-    """Health check — verifies DB and Redis connectivity. Returns 503 if either is down."""
+async def health():
+    """Liveness check — confirms the process is running."""
+    return {"status": "ok", "service": settings.APP_NAME}
+
+
+@app.get("/ready")
+async def ready():
+    """Readiness check — verifies DB and Redis are reachable. Returns 503 if any dependency is down."""
     import redis.asyncio as aioredis
     from sqlalchemy import text
 
     from app.database import engine
 
-    checks = {}
+    checks: dict = {}
     healthy = True
 
     # --- Database ---
@@ -147,7 +153,7 @@ async def health_check():
     return JSONResponse(
         status_code=200 if healthy else 503,
         content={
-            "status": "healthy" if healthy else "unhealthy",
+            "status": "ready" if healthy else "unavailable",
             "service": settings.APP_NAME,
             "checks": checks,
         },
