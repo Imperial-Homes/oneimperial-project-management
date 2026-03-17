@@ -2,7 +2,6 @@
 
 from datetime import date, datetime
 from math import ceil
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -12,10 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user
 from app.database import get_db
 from app.models.variation import ProjectVariation, VariationStatus
-from app.schemas.variation import (
-    VariationCreate, VariationUpdate, VariationResponse,
-    VariationList, VariationApproval
-)
+from app.schemas.variation import VariationApproval, VariationCreate, VariationList, VariationResponse, VariationUpdate
 
 router = APIRouter()
 
@@ -30,44 +26,40 @@ def generate_variation_number() -> str:
 async def list_variations(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
-    project_id: Optional[UUID] = Query(None),
-    status: Optional[VariationStatus] = Query(None),
-    search: Optional[str] = Query(None),
+    project_id: UUID | None = Query(None),
+    status: VariationStatus | None = Query(None),
+    search: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
     """List variations with filtering."""
     query = select(ProjectVariation)
-    
+
     if project_id:
         query = query.where(ProjectVariation.project_id == project_id)
-    
+
     if status:
         query = query.where(ProjectVariation.status == status)
-    
+
     if search:
         query = query.where(
             or_(
                 ProjectVariation.title.ilike(f"%{search}%"),
                 ProjectVariation.variation_number.ilike(f"%{search}%"),
-                ProjectVariation.description.ilike(f"%{search}%")
+                ProjectVariation.description.ilike(f"%{search}%"),
             )
         )
-    
+
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query)
-    
+
     query = query.order_by(ProjectVariation.requested_date.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
     variations = result.scalars().all()
-    
+
     return VariationList(
-        items=variations,
-        total=total,
-        page=page,
-        page_size=page_size,
-        pages=ceil(total / page_size) if total > 0 else 0
+        items=variations, total=total, page=page, page_size=page_size, pages=ceil(total / page_size) if total > 0 else 0
     )
 
 
@@ -79,9 +71,7 @@ async def create_variation(
 ):
     """Create new project variation."""
     variation = ProjectVariation(
-        variation_number=generate_variation_number(),
-        **variation_data.dict(),
-        created_by=current_user
+        variation_number=generate_variation_number(), **variation_data.dict(), created_by=current_user
     )
     db.add(variation)
     await db.commit()
@@ -96,17 +86,12 @@ async def get_variation(
     current_user: UUID = Depends(get_current_user),
 ):
     """Get variation by ID."""
-    result = await db.execute(
-        select(ProjectVariation).where(ProjectVariation.id == variation_id)
-    )
+    result = await db.execute(select(ProjectVariation).where(ProjectVariation.id == variation_id))
     variation = result.scalar_one_or_none()
-    
+
     if not variation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Variation not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variation not found")
+
     return variation
 
 
@@ -118,20 +103,15 @@ async def update_variation(
     current_user: UUID = Depends(get_current_user),
 ):
     """Update variation."""
-    result = await db.execute(
-        select(ProjectVariation).where(ProjectVariation.id == variation_id)
-    )
+    result = await db.execute(select(ProjectVariation).where(ProjectVariation.id == variation_id))
     variation = result.scalar_one_or_none()
-    
+
     if not variation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Variation not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variation not found")
+
     for field, value in variation_data.dict(exclude_unset=True).items():
         setattr(variation, field, value)
-    
+
     variation.updated_by = current_user
     await db.commit()
     await db.refresh(variation)
@@ -145,17 +125,12 @@ async def delete_variation(
     current_user: UUID = Depends(get_current_user),
 ):
     """Delete variation (soft delete)."""
-    result = await db.execute(
-        select(ProjectVariation).where(ProjectVariation.id == variation_id)
-    )
+    result = await db.execute(select(ProjectVariation).where(ProjectVariation.id == variation_id))
     variation = result.scalar_one_or_none()
-    
+
     if not variation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Variation not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variation not found")
+
     variation.is_active = False
     await db.commit()
 
@@ -168,17 +143,12 @@ async def approve_variation(
     current_user: UUID = Depends(get_current_user),
 ):
     """Approve or reject variation."""
-    result = await db.execute(
-        select(ProjectVariation).where(ProjectVariation.id == variation_id)
-    )
+    result = await db.execute(select(ProjectVariation).where(ProjectVariation.id == variation_id))
     variation = result.scalar_one_or_none()
-    
+
     if not variation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Variation not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variation not found")
+
     if approval_data.approved:
         variation.status = VariationStatus.APPROVED
         variation.approved_by = current_user
@@ -186,7 +156,7 @@ async def approve_variation(
     else:
         variation.status = VariationStatus.REJECTED
         variation.rejection_reason = approval_data.notes
-    
+
     variation.updated_by = current_user
     await db.commit()
     await db.refresh(variation)
@@ -201,17 +171,12 @@ async def update_variation_status(
     current_user: UUID = Depends(get_current_user),
 ):
     """Update variation status."""
-    result = await db.execute(
-        select(ProjectVariation).where(ProjectVariation.id == variation_id)
-    )
+    result = await db.execute(select(ProjectVariation).where(ProjectVariation.id == variation_id))
     variation = result.scalar_one_or_none()
-    
+
     if not variation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Variation not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variation not found")
+
     variation.status = new_status
     variation.updated_by = current_user
     await db.commit()

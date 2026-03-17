@@ -1,10 +1,9 @@
 """Site Visit API endpoints for project site inspections."""
 
+import logging
 from datetime import datetime
 from math import ceil
-from typing import Optional
 from uuid import UUID
-import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -14,8 +13,11 @@ from app.core.deps import get_current_user
 from app.database import get_db
 from app.models.site_visit import SiteVisit
 from app.schemas.site_visit import (
-    SiteVisitCreate, SiteVisitUpdate, SiteVisitResponse,
-    SiteVisitList, SiteVisitStats,
+    SiteVisitCreate,
+    SiteVisitList,
+    SiteVisitResponse,
+    SiteVisitStats,
+    SiteVisitUpdate,
 )
 
 router = APIRouter()
@@ -27,9 +29,12 @@ async def generate_visit_id(db: AsyncSession) -> str:
     year = datetime.utcnow().year
     prefix = f"SV-{year}-"
 
-    query = select(SiteVisit.visit_id).where(
-        SiteVisit.visit_id.like(f"{prefix}%")
-    ).order_by(SiteVisit.visit_id.desc()).limit(1)
+    query = (
+        select(SiteVisit.visit_id)
+        .where(SiteVisit.visit_id.like(f"{prefix}%"))
+        .order_by(SiteVisit.visit_id.desc())
+        .limit(1)
+    )
 
     result = await db.execute(query)
     last_id = result.scalar_one_or_none()
@@ -53,15 +58,9 @@ async def get_site_visit_stats(
 ):
     """Get site visit statistics."""
     total = await db.scalar(select(func.count(SiteVisit.id)))
-    completed = await db.scalar(
-        select(func.count(SiteVisit.id)).where(SiteVisit.status == "completed")
-    )
-    scheduled = await db.scalar(
-        select(func.count(SiteVisit.id)).where(SiteVisit.status == "scheduled")
-    )
-    follow_up_required = await db.scalar(
-        select(func.count(SiteVisit.id)).where(SiteVisit.follow_up_required == "yes")
-    )
+    completed = await db.scalar(select(func.count(SiteVisit.id)).where(SiteVisit.status == "completed"))
+    scheduled = await db.scalar(select(func.count(SiteVisit.id)).where(SiteVisit.status == "scheduled"))
+    follow_up_required = await db.scalar(select(func.count(SiteVisit.id)).where(SiteVisit.follow_up_required == "yes"))
 
     return SiteVisitStats(
         total=total or 0,
@@ -75,8 +74,8 @@ async def get_site_visit_stats(
 async def list_site_visits(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
-    search: Optional[str] = Query(None),
-    status_filter: Optional[str] = Query(None, alias="status"),
+    search: str | None = Query(None),
+    status_filter: str | None = Query(None, alias="status"),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
@@ -85,9 +84,9 @@ async def list_site_visits(
 
     if search:
         query = query.where(
-            (SiteVisit.project_name.ilike(f"%{search}%")) |
-            (SiteVisit.visit_id.ilike(f"%{search}%")) |
-            (SiteVisit.site_location.ilike(f"%{search}%"))
+            (SiteVisit.project_name.ilike(f"%{search}%"))
+            | (SiteVisit.visit_id.ilike(f"%{search}%"))
+            | (SiteVisit.site_location.ilike(f"%{search}%"))
         )
 
     if status_filter:

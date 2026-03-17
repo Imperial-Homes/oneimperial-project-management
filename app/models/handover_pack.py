@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+
 from sqlalchemy import Boolean, Column, DateTime, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 

@@ -1,10 +1,9 @@
 """Budget and Cost API endpoints."""
 
-from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
@@ -23,9 +22,7 @@ async def get_project_budgets(
 ):
     """Get all budgets for a project."""
     result = await db.execute(
-        select(ProjectBudget)
-        .where(ProjectBudget.project_id == project_id)
-        .order_by(ProjectBudget.version.desc())
+        select(ProjectBudget).where(ProjectBudget.project_id == project_id).order_by(ProjectBudget.version.desc())
     )
     budgets = result.scalars().all()
     return budgets
@@ -40,12 +37,8 @@ async def create_budget(
     """Create project budget."""
     # Calculate contingency amount
     contingency_amount = (budget_data.total_budget * budget_data.contingency_percentage) / 100
-    
-    budget = ProjectBudget(
-        **budget_data.dict(),
-        contingency_amount=contingency_amount,
-        created_by=current_user
-    )
+
+    budget = ProjectBudget(**budget_data.dict(), contingency_amount=contingency_amount, created_by=current_user)
     db.add(budget)
     await db.commit()
     await db.refresh(budget)
@@ -55,20 +48,20 @@ async def create_budget(
 @router.get("/{project_id}/costs", response_model=list[ProjectCostResponse])
 async def get_project_costs(
     project_id: UUID,
-    cost_category: Optional[str] = Query(None),
-    task_id: Optional[UUID] = Query(None),
+    cost_category: str | None = Query(None),
+    task_id: UUID | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
     """Get project costs."""
     query = select(ProjectCost).where(ProjectCost.project_id == project_id)
-    
+
     if cost_category:
         query = query.where(ProjectCost.cost_category == cost_category)
-    
+
     if task_id:
         query = query.where(ProjectCost.task_id == task_id)
-    
+
     query = query.order_by(ProjectCost.transaction_date.desc())
     result = await db.execute(query)
     costs = result.scalars().all()
@@ -103,14 +96,11 @@ async def get_budget_summary(
         .order_by(ProjectBudget.version.desc())
     )
     budget = result.scalar_one_or_none()
-    
+
     # Get total costs
-    result = await db.execute(
-        select(func.sum(ProjectCost.amount))
-        .where(ProjectCost.project_id == project_id)
-    )
+    result = await db.execute(select(func.sum(ProjectCost.amount)).where(ProjectCost.project_id == project_id))
     total_costs = result.scalar() or 0
-    
+
     # Get costs by category
     result = await db.execute(
         select(ProjectCost.cost_category, func.sum(ProjectCost.amount))
@@ -118,18 +108,13 @@ async def get_budget_summary(
         .group_by(ProjectCost.cost_category)
     )
     costs_by_category = {row[0]: row[1] for row in result.all()}
-    
+
     if not budget:
-        return {
-            "budget": None,
-            "total_costs": total_costs,
-            "variance": None,
-            "costs_by_category": costs_by_category
-        }
-    
+        return {"budget": None, "total_costs": total_costs, "variance": None, "costs_by_category": costs_by_category}
+
     variance = float(budget.total_budget) - float(total_costs)
     variance_percentage = (variance / float(budget.total_budget)) * 100 if budget.total_budget > 0 else 0
-    
+
     return {
         "budget": {
             "total": float(budget.total_budget),
@@ -142,5 +127,5 @@ async def get_budget_summary(
         "total_costs": float(total_costs),
         "variance": variance,
         "variance_percentage": variance_percentage,
-        "costs_by_category": costs_by_category
+        "costs_by_category": costs_by_category,
     }

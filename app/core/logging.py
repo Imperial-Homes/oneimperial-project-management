@@ -16,8 +16,8 @@ In any module:
 
 import logging
 import uuid
+from collections.abc import Callable
 from contextvars import ContextVar
-from typing import Callable
 
 from pythonjsonlogger import jsonlogger
 from starlette.middleware.base import BaseHTTPMiddleware

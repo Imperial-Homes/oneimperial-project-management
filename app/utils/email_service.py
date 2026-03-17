@@ -1,7 +1,7 @@
 """Email service using Mailgun API for Project Management notifications."""
 
 import logging
-from typing import Optional
+
 import httpx
 from tenacity import Retrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class EmailService:
     """Service for sending emails via Mailgun."""
-    
+
     def __init__(self):
         """Initialize email service with Mailgun settings."""
         self.settings = Settings()
@@ -21,34 +21,28 @@ class EmailService:
         self.from_email = self.settings.MAILGUN_FROM_EMAIL
         self.from_name = self.settings.MAILGUN_FROM_NAME
         self.base_url = f"https://api.mailgun.net/v3/{self.domain}/messages"
-    
+
     def is_configured(self) -> bool:
         """Check if Mailgun is properly configured."""
         return bool(self.api_key and self.domain)
-    
-    def send_email(
-        self,
-        to_email: str,
-        subject: str,
-        html_content: str,
-        text_content: Optional[str] = None
-    ) -> bool:
+
+    def send_email(self, to_email: str, subject: str, html_content: str, text_content: str | None = None) -> bool:
         """
         Send an email via Mailgun.
-        
+
         Args:
             to_email: Recipient email address
             subject: Email subject
             html_content: HTML content of the email
             text_content: Plain text content (optional)
-        
+
         Returns:
             bool: True if email sent successfully, False otherwise
         """
         if not self.is_configured():
             logger.error("Mailgun is not configured. Please set MAILGUN_API_KEY and MAILGUN_DOMAIN.")
             return False
-        
+
         try:
             data = {
                 "from": f"{self.from_name} <{self.from_email}>",
@@ -56,10 +50,10 @@ class EmailService:
                 "subject": subject,
                 "html": html_content,
             }
-            
+
             if text_content:
                 data["text"] = text_content
-            
+
             for _attempt in Retrying(
                 retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
                 stop=stop_after_attempt(3),
@@ -73,18 +67,20 @@ class EmailService:
                         data=data,
                         timeout=httpx.Timeout(10.0, connect=5.0),
                     )
-            
+
             if response.status_code == 200:
                 logger.info(f"Email sent successfully to {to_email}")
                 return True
             else:
-                logger.error(f"Failed to send email to {to_email}. Status: {response.status_code}, Response: {response.text}")
+                logger.error(
+                    f"Failed to send email to {to_email}. Status: {response.status_code}, Response: {response.text}"
+                )
                 return False
-                
+
         except Exception as e:
             logger.error(f"Error sending email to {to_email}: {str(e)}")
             return False
-    
+
     def send_task_assigned_email(
         self,
         to_email: str,
@@ -93,19 +89,14 @@ class EmailService:
         project_name: str,
         due_date: str,
         priority: str,
-        task_url: str
+        task_url: str,
     ) -> bool:
         """Send task assignment notification."""
         subject = f"New Task Assigned: {task_title}"
-        
-        priority_colors = {
-            "low": "#28a745",
-            "medium": "#ffc107",
-            "high": "#fd7e14",
-            "critical": "#dc3545"
-        }
+
+        priority_colors = {"low": "#28a745", "medium": "#ffc107", "high": "#fd7e14", "critical": "#dc3545"}
         priority_color = priority_colors.get(priority.lower(), "#6c757d")
-        
+
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -150,7 +141,7 @@ class EmailService:
         </body>
         </html>
         """
-        
+
         text_content = f"""
         New Task Assigned
         
@@ -169,9 +160,9 @@ class EmailService:
         Best regards,
         Project Management Team
         """
-        
+
         return self.send_email(to_email, subject, html_content, text_content)
-    
+
     def send_task_due_soon_email(
         self,
         to_email: str,
@@ -180,11 +171,11 @@ class EmailService:
         project_name: str,
         due_date: str,
         hours_remaining: int,
-        task_url: str
+        task_url: str,
     ) -> bool:
         """Send task due soon reminder."""
         subject = f"⏰ Task Due Soon: {task_title}"
-        
+
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -231,7 +222,7 @@ class EmailService:
         </body>
         </html>
         """
-        
+
         text_content = f"""
         Task Due Soon
         
@@ -251,9 +242,9 @@ class EmailService:
         Best regards,
         Project Management Team
         """
-        
+
         return self.send_email(to_email, subject, html_content, text_content)
-    
+
     def send_task_overdue_email(
         self,
         to_email: str,
@@ -262,11 +253,11 @@ class EmailService:
         project_name: str,
         due_date: str,
         days_overdue: int,
-        task_url: str
+        task_url: str,
     ) -> bool:
         """Send task overdue alert."""
         subject = f"🚨 Task Overdue: {task_title}"
-        
+
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -308,7 +299,7 @@ class EmailService:
         </body>
         </html>
         """
-        
+
         text_content = f"""
         Task Overdue - URGENT
         
@@ -327,9 +318,9 @@ class EmailService:
         Best regards,
         Project Management Team
         """
-        
+
         return self.send_email(to_email, subject, html_content, text_content)
-    
+
     # TODO: Future Notifications to Implement
     # - send_project_created_email() - Notify all team members
     # - send_project_status_changed_email() - Update to stakeholders
@@ -340,7 +331,7 @@ class EmailService:
     # - send_variation_approved_email() - Notify requester
     # - send_variation_rejected_email() - Notify requester with reason
     # See EMAIL_NOTIFICATIONS_TODO.md for full details
-    
+
     def send_project_milestone_reached_email(
         self,
         to_email: str,
@@ -348,11 +339,11 @@ class EmailService:
         project_name: str,
         milestone_name: str,
         completion_date: str,
-        project_url: str
+        project_url: str,
     ) -> bool:
         """Send project milestone celebration email."""
         subject = f"🎉 Milestone Achieved: {milestone_name}"
-        
+
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -409,7 +400,7 @@ class EmailService:
         </body>
         </html>
         """
-        
+
         text_content = f"""
         Milestone Achieved!
         
@@ -430,7 +421,7 @@ class EmailService:
         Best regards,
         Project Management Team
         """
-        
+
         return self.send_email(to_email, subject, html_content, text_content)
 
 

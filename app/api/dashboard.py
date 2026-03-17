@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
 from app.database import get_db
-from app.models import Project, Task, Resource, ProjectBudget, ProjectCost, ProjectSchedule
+from app.models import Project, ProjectBudget, ProjectCost, Resource, Task
 
 router = APIRouter()
 
@@ -20,100 +20,77 @@ async def get_dashboard_stats(
     current_user: UUID = Depends(get_current_user),
 ):
     """Get dashboard statistics for project management."""
-    
+
     # Project stats
-    total_projects = await db.scalar(
-        select(func.count()).select_from(Project).where(Project.is_active == True)
-    )
-    
+    total_projects = await db.scalar(select(func.count()).select_from(Project).where(Project.is_active == True))
+
     # Active projects (status = active OR planning OR in_progress)
     active_projects = await db.scalar(
-        select(func.count()).select_from(Project)
-        .where(
-            Project.status.in_(["active", "planning", "in_progress"]),
-            Project.is_active == True
-        )
+        select(func.count())
+        .select_from(Project)
+        .where(Project.status.in_(["active", "planning", "in_progress"]), Project.is_active == True)
     )
-    
+
     projects_by_status = {}
     result = await db.execute(
-        select(Project.status, func.count(Project.id))
-        .where(Project.is_active == True)
-        .group_by(Project.status)
+        select(Project.status, func.count(Project.id)).where(Project.is_active == True).group_by(Project.status)
     )
     for status, count in result:
         projects_by_status[status] = count
-    
+
     # Behind schedule projects (target_end_date < today and status not completed)
     behind_schedule = await db.scalar(
-        select(func.count()).select_from(Project)
+        select(func.count())
+        .select_from(Project)
         .where(
             Project.target_end_date < datetime.now().date(),
             Project.status.notin_(["completed", "cancelled"]),
-            Project.is_active == True
+            Project.is_active == True,
         )
     )
-    
+
     # On budget projects (calculate from project budget field)
     result = await db.execute(
-        select(
-            Project.id,
-            Project.budget,
-            func.coalesce(func.sum(ProjectCost.amount), 0).label('total_spent')
-        )
+        select(Project.id, Project.budget, func.coalesce(func.sum(ProjectCost.amount), 0).label("total_spent"))
         .outerjoin(ProjectCost, Project.id == ProjectCost.project_id)
         .where(Project.is_active == True, Project.budget.isnot(None))
         .group_by(Project.id, Project.budget)
     )
     budget_data = result.all()
     on_budget = sum(1 for _, budget, spent in budget_data if spent <= budget)
-    
+
     # Calculate total value from all active projects
-    total_value = await db.scalar(
-        select(func.coalesce(func.sum(Project.budget), 0))
-        .where(Project.is_active == True)
-    )
-    
+    total_value = await db.scalar(select(func.coalesce(func.sum(Project.budget), 0)).where(Project.is_active == True))
+
     # Task stats
-    total_tasks = await db.scalar(
-        select(func.count()).select_from(Task)
-    )
-    
+    total_tasks = await db.scalar(select(func.count()).select_from(Task))
+
     tasks_by_status = {}
-    result = await db.execute(
-        select(Task.status, func.count(Task.id))
-        .group_by(Task.status)
-    )
+    result = await db.execute(select(Task.status, func.count(Task.id)).group_by(Task.status))
     for status, count in result:
         tasks_by_status[status] = count
-    
+
     # Resource stats
-    total_resources = await db.scalar(
-        select(func.count()).select_from(Resource).where(Resource.is_active == True)
-    )
-    
+    total_resources = await db.scalar(select(func.count()).select_from(Resource).where(Resource.is_active == True))
+
     available_resources = await db.scalar(
-        select(func.count()).select_from(Resource)
+        select(func.count())
+        .select_from(Resource)
         .where(Resource.availability_status == "available", Resource.is_active == True)
     )
-    
+
     # Budget stats - calculate total_spent from ProjectCost
     result = await db.execute(
-        select(
-            func.coalesce(func.sum(ProjectBudget.total_budget), 0).label('total_budget')
+        select(func.coalesce(func.sum(ProjectBudget.total_budget), 0).label("total_budget")).where(
+            ProjectBudget.is_approved == True
         )
-        .where(ProjectBudget.is_approved == True)
     )
     total_budget = result.scalar() or 0
-    
+
     # Calculate total spent across all projects
-    result = await db.execute(
-        select(
-            func.coalesce(func.sum(ProjectCost.amount), 0).label('total_spent')
-        )
-    )
+    result = await db.execute(select(func.coalesce(func.sum(ProjectCost.amount), 0).label("total_spent")))
     total_spent = result.scalar() or 0
-    
+
     return {
         "projects": {
             "total": total_projects or 0,
@@ -148,24 +125,17 @@ async def get_recent_activity(
     current_user: UUID = Depends(get_current_user),
 ):
     """Get recent activity in project management."""
-    
+
     # Recent projects
     result = await db.execute(
-        select(Project)
-        .where(Project.is_active == True)
-        .order_by(Project.created_at.desc())
-        .limit(limit)
+        select(Project).where(Project.is_active == True).order_by(Project.created_at.desc()).limit(limit)
     )
     recent_projects = result.scalars().all()
-    
+
     # Recent tasks
-    result = await db.execute(
-        select(Task)
-        .order_by(Task.created_at.desc())
-        .limit(limit)
-    )
+    result = await db.execute(select(Task).order_by(Task.created_at.desc()).limit(limit))
     recent_tasks = result.scalars().all()
-    
+
     return {
         "recent_projects": [
             {
@@ -198,34 +168,32 @@ async def get_alerts(
     current_user: UUID = Depends(get_current_user),
 ):
     """Get important alerts for dashboard."""
-    
+
     alerts = []
-    
+
     # Overdue tasks
     result = await db.execute(
-        select(Task)
-        .where(
-            Task.due_date < datetime.now().date(),
-            Task.status.in_(["todo", "in_progress"])
-        )
+        select(Task).where(Task.due_date < datetime.now().date(), Task.status.in_(["todo", "in_progress"]))
     )
     overdue_tasks = result.scalars().all()
-    
+
     if overdue_tasks:
-        alerts.append({
-            "type": "overdue_tasks",
-            "severity": "high",
-            "title": "Overdue Tasks",
-            "message": f"{len(overdue_tasks)} task(s) are overdue",
-            "count": len(overdue_tasks),
-        })
-    
+        alerts.append(
+            {
+                "type": "overdue_tasks",
+                "severity": "high",
+                "title": "Overdue Tasks",
+                "message": f"{len(overdue_tasks)} task(s) are overdue",
+                "count": len(overdue_tasks),
+            }
+        )
+
     # Projects over budget - calculate actual spending from ProjectCost
     result = await db.execute(
         select(
             ProjectBudget.project_id,
             ProjectBudget.total_budget,
-            func.coalesce(func.sum(ProjectCost.amount), 0).label('total_spent')
+            func.coalesce(func.sum(ProjectCost.amount), 0).label("total_spent"),
         )
         .outerjoin(ProjectCost, ProjectBudget.project_id == ProjectCost.project_id)
         .where(ProjectBudget.is_approved == True)
@@ -233,42 +201,46 @@ async def get_alerts(
         .having(func.coalesce(func.sum(ProjectCost.amount), 0) > ProjectBudget.total_budget)
     )
     over_budget = result.all()
-    
+
     if over_budget:
-        alerts.append({
-            "type": "over_budget",
-            "severity": "high",
-            "title": "Projects Over Budget",
-            "message": f"{len(over_budget)} project(s) are over budget",
-            "count": len(over_budget),
-        })
-    
+        alerts.append(
+            {
+                "type": "over_budget",
+                "severity": "high",
+                "title": "Projects Over Budget",
+                "message": f"{len(over_budget)} project(s) are over budget",
+                "count": len(over_budget),
+            }
+        )
+
     # Projects nearing budget limit (>90%)
     result = await db.execute(
         select(
             ProjectBudget.project_id,
             ProjectBudget.total_budget,
-            func.coalesce(func.sum(ProjectCost.amount), 0).label('total_spent')
+            func.coalesce(func.sum(ProjectCost.amount), 0).label("total_spent"),
         )
         .outerjoin(ProjectCost, ProjectBudget.project_id == ProjectCost.project_id)
         .where(ProjectBudget.is_approved == True)
         .group_by(ProjectBudget.project_id, ProjectBudget.total_budget)
         .having(
             func.coalesce(func.sum(ProjectCost.amount), 0) > (ProjectBudget.total_budget * 0.9),
-            func.coalesce(func.sum(ProjectCost.amount), 0) <= ProjectBudget.total_budget
+            func.coalesce(func.sum(ProjectCost.amount), 0) <= ProjectBudget.total_budget,
         )
     )
     near_budget = result.scalars().all()
-    
+
     if near_budget:
-        alerts.append({
-            "type": "budget_warning",
-            "severity": "medium",
-            "title": "Budget Warning",
-            "message": f"{len(near_budget)} project(s) nearing budget limit",
-            "count": len(near_budget),
-        })
-    
+        alerts.append(
+            {
+                "type": "budget_warning",
+                "severity": "medium",
+                "title": "Budget Warning",
+                "message": f"{len(near_budget)} project(s) nearing budget limit",
+                "count": len(near_budget),
+            }
+        )
+
     return {
         "alerts": alerts,
         "total_count": len(alerts),

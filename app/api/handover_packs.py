@@ -1,17 +1,20 @@
 """Handover Pack API endpoints - SOP 5.0."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from typing import Optional
-from datetime import datetime
 import math
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.handover_pack import HandoverPack
 from app.schemas.handover_pack import (
-    HandoverPackCreate, HandoverPackUpdate,
-    HandoverPackResponse, HandoverPackList, HandoverPackStats,
+    HandoverPackCreate,
+    HandoverPackList,
+    HandoverPackResponse,
+    HandoverPackStats,
+    HandoverPackUpdate,
 )
 
 router = APIRouter()
@@ -45,17 +48,15 @@ async def create_handover(data: HandoverPackCreate, db: AsyncSession = Depends(g
 async def get_handovers(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    search: Optional[str] = None,
-    status: Optional[str] = None,
+    search: str | None = None,
+    status: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     filters = []
     if search:
         s = f"%{search}%"
         filters.append(
-            HandoverPack.property_name.ilike(s) |
-            HandoverPack.client_name.ilike(s) |
-            HandoverPack.handover_id.ilike(s)
+            HandoverPack.property_name.ilike(s) | HandoverPack.client_name.ilike(s) | HandoverPack.handover_id.ilike(s)
         )
     if status:
         filters.append(HandoverPack.status == status)
@@ -72,8 +73,9 @@ async def get_handovers(
     query = query.order_by(HandoverPack.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     items = (await db.execute(query)).scalars().all()
 
-    return HandoverPackList(items=items, total=total, page=page, page_size=page_size,
-                             pages=math.ceil(total / page_size) if total > 0 else 0)
+    return HandoverPackList(
+        items=items, total=total, page=page, page_size=page_size, pages=math.ceil(total / page_size) if total > 0 else 0
+    )
 
 
 @router.get("/stats", response_model=HandoverPackStats)

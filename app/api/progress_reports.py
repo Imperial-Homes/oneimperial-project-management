@@ -1,10 +1,9 @@
 """Progress Report API endpoints for project status reporting."""
 
+import logging
 from datetime import datetime
 from math import ceil
-from typing import Optional
 from uuid import UUID
-import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -14,8 +13,11 @@ from app.core.deps import get_current_user
 from app.database import get_db
 from app.models.progress_report import ProgressReport
 from app.schemas.progress_report import (
-    ProgressReportCreate, ProgressReportUpdate, ProgressReportResponse,
-    ProgressReportList, ProgressReportStats,
+    ProgressReportCreate,
+    ProgressReportList,
+    ProgressReportResponse,
+    ProgressReportStats,
+    ProgressReportUpdate,
 )
 
 router = APIRouter()
@@ -27,9 +29,12 @@ async def generate_report_id(db: AsyncSession) -> str:
     year = datetime.utcnow().year
     prefix = f"PR-{year}-"
 
-    query = select(ProgressReport.report_id).where(
-        ProgressReport.report_id.like(f"{prefix}%")
-    ).order_by(ProgressReport.report_id.desc()).limit(1)
+    query = (
+        select(ProgressReport.report_id)
+        .where(ProgressReport.report_id.like(f"{prefix}%"))
+        .order_by(ProgressReport.report_id.desc())
+        .limit(1)
+    )
 
     result = await db.execute(query)
     last_id = result.scalar_one_or_none()
@@ -53,15 +58,9 @@ async def get_progress_report_stats(
 ):
     """Get progress report statistics."""
     total = await db.scalar(select(func.count(ProgressReport.id)))
-    draft = await db.scalar(
-        select(func.count(ProgressReport.id)).where(ProgressReport.status == "draft")
-    )
-    submitted = await db.scalar(
-        select(func.count(ProgressReport.id)).where(ProgressReport.status == "submitted")
-    )
-    approved = await db.scalar(
-        select(func.count(ProgressReport.id)).where(ProgressReport.status == "approved")
-    )
+    draft = await db.scalar(select(func.count(ProgressReport.id)).where(ProgressReport.status == "draft"))
+    submitted = await db.scalar(select(func.count(ProgressReport.id)).where(ProgressReport.status == "submitted"))
+    approved = await db.scalar(select(func.count(ProgressReport.id)).where(ProgressReport.status == "approved"))
 
     return ProgressReportStats(
         total=total or 0,
@@ -75,8 +74,8 @@ async def get_progress_report_stats(
 async def list_progress_reports(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
-    search: Optional[str] = Query(None),
-    status_filter: Optional[str] = Query(None, alias="status"),
+    search: str | None = Query(None),
+    status_filter: str | None = Query(None, alias="status"),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
@@ -85,9 +84,9 @@ async def list_progress_reports(
 
     if search:
         query = query.where(
-            (ProgressReport.report_title.ilike(f"%{search}%")) |
-            (ProgressReport.report_id.ilike(f"%{search}%")) |
-            (ProgressReport.project_name.ilike(f"%{search}%"))
+            (ProgressReport.report_title.ilike(f"%{search}%"))
+            | (ProgressReport.report_id.ilike(f"%{search}%"))
+            | (ProgressReport.project_name.ilike(f"%{search}%"))
         )
 
     if status_filter:

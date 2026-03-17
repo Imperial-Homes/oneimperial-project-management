@@ -1,37 +1,38 @@
 """Main FastAPI application."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
-import logging
 
 from app.api import (
-    projects,
-    tasks,
-    resources,
-    resource_assignments,
-    schedules,
     budgets,
-    variations,
-    payments,
-    incidents,
     dashboard,
-    timeline,
-    progress,
-    resource_utilization,
-    site_visits,
-    progress_reports,
     handover_packs,
+    incidents,
+    payments,
+    progress,
+    progress_reports,
+    projects,
+    resource_assignments,
+    resource_utilization,
+    resources,
+    schedules,
+    site_visits,
+    tasks,
+    timeline,
+    variations,
 )
 from app.config import settings
-from app.core.logging import configure_logging, RequestIDMiddleware
+from app.core.logging import RequestIDMiddleware, configure_logging
 
 logger = logging.getLogger(__name__)
 configure_logging("INFO", service_name=settings.APP_NAME)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -40,10 +41,12 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Service shutting down — draining connections")
     from app.database import engine
+
     await engine.dispose()
-    redis_url = getattr(settings, 'REDIS_URL', None)
+    redis_url = getattr(settings, "REDIS_URL", None)
     if redis_url:
         import redis.asyncio as aioredis
+
         try:
             client = aioredis.from_url(redis_url)
             await client.aclose()
@@ -60,19 +63,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     servers=[
-        {
-            "url": "https://api.imperialhomesghana.com/api/projects",
-            "description": "Production server"
-        },
-        {
-            "url": "http://localhost/api/projects",
-            "description": "Local development"
-        },
-        {
-            "url": "/api/projects",
-            "description": "Relative URL (current domain)"
-        }
-    ]
+        {"url": "https://api.imperialhomesghana.com/api/projects", "description": "Production server"},
+        {"url": "http://localhost/api/projects", "description": "Local development"},
+        {"url": "/api/projects", "description": "Relative URL (current domain)"},
+    ],
 )
 
 
@@ -113,20 +107,15 @@ app.include_router(handover_packs.router, prefix="/handover-packs", tags=["Hando
 @app.get("/")
 async def root():
     """Root endpoint."""
-    return {
-        "service": settings.APP_NAME,
-        "version": settings.VERSION,
-        "status": "operational"
-    }
-
-
+    return {"service": settings.APP_NAME, "version": settings.VERSION, "status": "operational"}
 
 
 @app.get("/health")
 async def health_check():
     """Health check — verifies DB and Redis connectivity. Returns 503 if either is down."""
-    from sqlalchemy import text
     import redis.asyncio as aioredis
+    from sqlalchemy import text
+
     from app.database import engine
 
     checks = {}
@@ -169,22 +158,13 @@ async def health_check():
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     """Handle HTTP exceptions. NGINX adds CORS headers."""
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "detail": exc.detail,
-            "status_code": exc.status_code
-        }
-    )
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail, "status_code": exc.status_code})
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle validation errors. NGINX adds CORS headers."""
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": exc.errors()}
-    )
+    return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content={"detail": exc.errors()})
 
 
 @app.exception_handler(Exception)
@@ -195,6 +175,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "detail": "An internal server error occurred",
-            "error": str(exc) if settings.DEBUG else "Internal server error"
-        }
+            "error": str(exc) if settings.DEBUG else "Internal server error",
+        },
     )

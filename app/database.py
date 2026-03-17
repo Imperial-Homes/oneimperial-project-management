@@ -5,7 +5,6 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import settings
 
-
 # asyncpg connect-time settings:
 #   timeout         — TCP handshake / connection timeout (s)
 #   command_timeout — per-command asyncpg timeout (s, client-side)
@@ -16,7 +15,7 @@ _CONNECT_ARGS = {
     "statement_cache_size": 0,  # PgBouncer transaction mode: disable asyncpg prepared statement cache
     "server_settings": {
         "statement_timeout": "30000",  # 30 s — kills runaway queries
-        "lock_timeout": "10000",       # 10 s — avoids lock convoys
+        "lock_timeout": "10000",  # 10 s — avoids lock convoys
     },
 }
 
@@ -26,11 +25,11 @@ _CONNECT_ARGS = {
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,
-    pool_pre_ping=True,   # discard stale connections before use
+    pool_pre_ping=True,  # discard stale connections before use
     pool_size=5,
     max_overflow=10,
-    pool_timeout=30,      # raise after 30 s waiting for a free connection
-    pool_recycle=3600,    # recycle connections after 1 hour
+    pool_timeout=30,  # raise after 30 s waiting for a free connection
+    pool_recycle=3600,  # recycle connections after 1 hour
     connect_args=_CONNECT_ARGS,
 )
 

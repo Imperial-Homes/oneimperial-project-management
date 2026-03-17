@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CircuitBreaker:
     name: str
-    fail_max: int = 3            # consecutive failures before opening
+    fail_max: int = 3  # consecutive failures before opening
     reset_timeout: float = 30.0  # seconds in OPEN before attempting HALF_OPEN
 
     _failures: int = field(default=0, init=False, repr=False)

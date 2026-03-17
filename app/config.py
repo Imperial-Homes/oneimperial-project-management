@@ -1,6 +1,5 @@
 """Configuration settings."""
 
-from typing import Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -34,6 +33,7 @@ class Settings(BaseSettings):
     @property
     def jwt_public_key(self) -> str:
         import base64
+
         return base64.b64decode(self.JWT_PUBLIC_KEY_B64).decode("utf-8")
 
     # Redis

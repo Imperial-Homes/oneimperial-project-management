@@ -1,9 +1,10 @@
 """Notification service for Project Management."""
 
 import logging
-import httpx
-from typing import Optional
 from uuid import UUID
+
+import httpx
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -17,12 +18,7 @@ class NotificationService:
         self.base_url = settings.NOTIFICATION_SERVICE_URL
 
     async def send_notification(
-        self,
-        user_id: UUID,
-        title: str,
-        message: str,
-        type: str = "info",
-        link: Optional[str] = None
+        self, user_id: UUID, title: str, message: str, type: str = "info", link: str | None = None
     ) -> bool:
         """Send an in-app notification via the central hub (async)."""
         try:
@@ -41,9 +37,7 @@ class NotificationService:
                 logger.info(f"Notification sent successfully to user {user_id}")
                 return True
             else:
-                logger.error(
-                    f"Failed to send notification. Status: {response.status_code}, Body: {response.text}"
-                )
+                logger.error(f"Failed to send notification. Status: {response.status_code}, Body: {response.text}")
                 return False
 
         except Exception as e:
