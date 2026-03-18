@@ -1,0 +1,4 @@
+# CVE-2026-23949: jaraco.context path traversal
+CVE-2026-23949
+# CVE-2026-24049: wheel privilege escalation
+CVE-2026-24049
