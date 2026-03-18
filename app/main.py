@@ -61,6 +61,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
     description="Construction Project Management Service for OneImperial ERP",
+    root_path="/api/projects",
     docs_url="/docs",
     redoc_url="/redoc",
     servers=[
