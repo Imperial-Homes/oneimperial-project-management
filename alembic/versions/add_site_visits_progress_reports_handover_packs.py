@@ -2,7 +2,7 @@
 
 Moved from crm service — these are project domain models and belong here.
 
-Revision ID: add_site_visits_progress_handover_001
+Revision ID: add_site_visits_001
 Revises: rename_to_payment_certificates
 Create Date: 2026-03-17 00:00:00.000000
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "add_site_visits_progress_handover_001"
+revision: str = "add_site_visits_001"
 down_revision: Union[str, None] = "rename_to_payment_certificates"
 branch_labels = None
 depends_on = None
