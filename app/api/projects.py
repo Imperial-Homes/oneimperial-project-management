@@ -133,6 +133,22 @@ async def create_project(
     return project
 
 
+@router.get("/dropdown", response_model=list[dict])
+async def projects_dropdown(
+    project_type: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: UUID = Depends(get_current_user),
+):
+    """Lightweight list for dropdown selects — returns id, name, project_type."""
+    query = select(Project.id, Project.name, Project.project_type).where(Project.is_active == True)  # noqa: E712
+    if project_type:
+        query = query.where(Project.project_type == project_type)
+    query = query.order_by(Project.name)
+    result = await db.execute(query)
+    rows = result.all()
+    return [{"id": str(r.id), "name": r.name, "project_type": r.project_type} for r in rows]
+
+
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(
     project_id: UUID,
