@@ -8,8 +8,8 @@ Create Date: 2026-03-18 00:00:00.000000
 from alembic import op
 import sqlalchemy as sa
 
-revision = 'merge_project_heads_001'
-down_revision = ('add_project_incidents', 'add_site_visits_001')
+revision = '007'
+down_revision = ('005', '006')
 branch_labels = None
 depends_on = None
 

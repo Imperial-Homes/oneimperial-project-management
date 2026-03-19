@@ -13,8 +13,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "add_site_visits_001"
-down_revision: Union[str, None] = "rename_to_payment_certificates"
+revision: str = "006"
+down_revision: Union[str, None] = "004"
 branch_labels = None
 depends_on = None
 
