@@ -182,3 +182,62 @@ async def update_variation_status(
     await db.commit()
     await db.refresh(variation)
     return variation
+
+
+@router.get("/{variation_id}/pdf")
+async def download_variation_order_pdf(
+    variation_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UUID = Depends(get_current_user),
+):
+    """Generate and download a branded Variation Order PDF."""
+    from fastapi.responses import Response
+    from app.utils.pdf_variation import generate_variation_order_pdf
+
+    result = await db.execute(select(ProjectVariation).where(ProjectVariation.id == variation_id))
+    var = result.scalar_one_or_none()
+    if not var:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variation not found")
+
+    # Fetch project name if available
+    project_name = ""
+    project_code = ""
+    if var.project_id:
+        from app.models.project import Project
+        pr = await db.execute(select(Project).where(Project.id == var.project_id))
+        proj = pr.scalar_one_or_none()
+        if proj:
+            project_name = proj.name or ""
+            project_code = getattr(proj, "project_code", "") or ""
+
+    pdf_bytes = generate_variation_order_pdf(
+        variation_number=var.variation_number,
+        title=var.title,
+        variation_type=str(var.variation_type.value if hasattr(var.variation_type, "value") else var.variation_type),
+        status=str(var.status.value if hasattr(var.status, "value") else var.status),
+        requested_date=var.requested_date,
+        priority=var.priority or "medium",
+        currency=var.currency or "GHS",
+        project_name=project_name,
+        project_code=project_code,
+        original_amount=float(var.original_amount or 0),
+        variation_amount=float(var.variation_amount or 0),
+        new_total_amount=float(var.new_total_amount or 0),
+        impact_on_timeline=var.impact_on_timeline or 0,
+        original_completion_date=var.original_completion_date,
+        new_completion_date=var.new_completion_date,
+        description=var.description or "",
+        justification=var.justification or "",
+        impact_assessment=var.impact_assessment or "",
+        approved_date=var.approved_date,
+        rejection_reason=var.rejection_reason or "",
+    )
+
+    if not pdf_bytes:
+        raise HTTPException(status_code=500, detail="PDF generation failed")
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="variation_{var.variation_number}.pdf"'},
+    )

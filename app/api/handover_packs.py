@@ -127,3 +127,57 @@ async def delete_handover(item_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Handover pack not found")
     await db.delete(obj)
     await db.commit()
+
+
+@router.get("/{item_id}/pdf")
+async def download_handover_certificate_pdf(
+    item_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate and download a branded Handover Certificate PDF (SOP 5.0)."""
+    from fastapi.responses import Response
+    from app.utils.pdf_handover import generate_handover_certificate_pdf
+
+    result = await db.execute(select(HandoverPack).where(HandoverPack.id == item_id))
+    hp = result.scalar_one_or_none()
+    if not hp:
+        raise HTTPException(status_code=404, detail="Handover pack not found")
+
+    pdf_bytes = generate_handover_certificate_pdf(
+        handover_id=hp.handover_id,
+        status=hp.status,
+        property_name=hp.property_name,
+        apartment_number=hp.apartment_number or "",
+        site_location=hp.site_location or "",
+        client_name=hp.client_name,
+        client_email=hp.client_email or "",
+        client_phone=hp.client_phone or "",
+        sinking_fund_invoiced=bool(hp.sinking_fund_invoiced),
+        sinking_fund_amount=float(hp.sinking_fund_amount) if hp.sinking_fund_amount else None,
+        transfer_document_invoiced=bool(hp.transfer_document_invoiced),
+        transfer_document_amount=float(hp.transfer_document_amount) if hp.transfer_document_amount else None,
+        hoa_forms_completed=bool(hp.hoa_forms_completed),
+        facility_manager_info_provided=bool(hp.facility_manager_info_provided),
+        all_payments_made=bool(hp.all_payments_made),
+        payments_date=hp.payments_date,
+        handover_pack_drafted=bool(hp.handover_pack_drafted),
+        doa_approved=bool(hp.doa_approved),
+        doa_approved_date=hp.doa_approved_date,
+        client_signed=bool(hp.client_signed),
+        client_signed_date=hp.client_signed_date,
+        keys_handed_over=bool(hp.keys_handed_over),
+        handover_date=hp.handover_date,
+        letter_to_client=hp.letter_to_client or "",
+        notes=hp.notes or "",
+        issues_noted=hp.issues_noted or "",
+        handled_by=hp.handled_by or "",
+    )
+
+    if not pdf_bytes:
+        raise HTTPException(status_code=500, detail="PDF generation failed")
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="handover_{hp.handover_id}.pdf"'},
+    )
