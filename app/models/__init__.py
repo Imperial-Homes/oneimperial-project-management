@@ -19,6 +19,7 @@ from app.models.timeline import (
     TimelineTaskDependency,
 )
 from app.models.variation import ProjectVariation
+from app.models.retention import RetentionRelease
 
 __all__ = [
     "Project",
@@ -43,4 +44,5 @@ __all__ = [
     "SiteVisit",
     "ProgressReport",
     "HandoverPack",
+    "RetentionRelease",
 ]
