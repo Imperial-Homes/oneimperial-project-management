@@ -54,7 +54,7 @@ async def generate_report_id(db: AsyncSession) -> str:
 @router.get("/stats", response_model=ProgressReportStats)
 async def get_progress_report_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user),
 ):
     """Get progress report statistics."""
     total = await db.scalar(select(func.count(ProgressReport.id)))
@@ -77,7 +77,7 @@ async def list_progress_reports(
     search: str | None = Query(None),
     status_filter: str | None = Query(None, alias="status"),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user),
 ):
     """List progress reports with pagination and filtering."""
     query = select(ProgressReport)
@@ -112,7 +112,7 @@ async def list_progress_reports(
 async def get_progress_report(
     report_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user),
 ):
     """Get a single progress report by ID."""
     result = await db.execute(select(ProgressReport).where(ProgressReport.id == report_id))
@@ -128,7 +128,7 @@ async def get_progress_report(
 async def create_progress_report(
     data: ProgressReportCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user),
 ):
     """Create a new progress report."""
     report_id = await generate_report_id(db)
@@ -153,8 +153,8 @@ async def create_progress_report(
         submitted_to_id=data.submitted_to_id,
         status=data.status or "draft",
         attachment_url=data.attachment_url,
-        compiled_by=data.compiled_by or current_user.get("name", ""),
-        compiled_by_id=data.compiled_by_id or (UUID(current_user["sub"]) if current_user.get("sub") else None),
+        compiled_by=data.compiled_by or "",
+        compiled_by_id=data.compiled_by_id or current_user,
     )
 
     db.add(report)
@@ -171,7 +171,7 @@ async def update_progress_report(
     report_id: UUID,
     data: ProgressReportUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user),
 ):
     """Update a progress report."""
     result = await db.execute(select(ProgressReport).where(ProgressReport.id == report_id))
@@ -197,7 +197,7 @@ async def update_progress_report(
 async def delete_progress_report(
     report_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user),
 ):
     """Delete a progress report."""
     result = await db.execute(select(ProgressReport).where(ProgressReport.id == report_id))
