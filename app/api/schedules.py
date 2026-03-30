@@ -1,6 +1,5 @@
 """Schedule and Milestone API endpoints."""
 
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -9,10 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
 from app.database import get_db
-from app.models import ProjectSchedule, Milestone
+from app.models import Milestone, ProjectSchedule
 from app.schemas import (
-    ProjectScheduleCreate, ProjectScheduleResponse,
-    MilestoneCreate, MilestoneUpdate, MilestoneResponse
+    MilestoneCreate,
+    MilestoneResponse,
+    MilestoneUpdate,
+    ProjectScheduleCreate,
+    ProjectScheduleResponse,
 )
 
 router = APIRouter()
@@ -26,9 +28,7 @@ async def get_project_schedules(
 ):
     """Get all schedules for a project."""
     result = await db.execute(
-        select(ProjectSchedule)
-        .where(ProjectSchedule.project_id == project_id)
-        .order_by(ProjectSchedule.version.desc())
+        select(ProjectSchedule).where(ProjectSchedule.project_id == project_id).order_by(ProjectSchedule.version.desc())
     )
     schedules = result.scalars().all()
     return schedules
@@ -51,16 +51,16 @@ async def create_schedule(
 @router.get("/milestones/{project_id}", response_model=list[MilestoneResponse])
 async def get_project_milestones(
     project_id: UUID,
-    status: Optional[str] = Query(None),
+    status: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
     """Get project milestones."""
     query = select(Milestone).where(Milestone.project_id == project_id)
-    
+
     if status:
         query = query.where(Milestone.status == status)
-    
+
     query = query.order_by(Milestone.due_date)
     result = await db.execute(query)
     milestones = result.scalars().all()
@@ -89,20 +89,15 @@ async def update_milestone(
     current_user: UUID = Depends(get_current_user),
 ):
     """Update milestone."""
-    result = await db.execute(
-        select(Milestone).where(Milestone.id == milestone_id)
-    )
+    result = await db.execute(select(Milestone).where(Milestone.id == milestone_id))
     milestone = result.scalar_one_or_none()
-    
+
     if not milestone:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Milestone not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Milestone not found")
+
     for field, value in milestone_data.dict(exclude_unset=True).items():
         setattr(milestone, field, value)
-    
+
     await db.commit()
     await db.refresh(milestone)
     return milestone

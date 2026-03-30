@@ -1,7 +1,6 @@
 """Resource API endpoints."""
 
 from math import ceil
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -11,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user
 from app.database import get_db
 from app.models import Resource
-from app.schemas import ResourceCreate, ResourceUpdate, ResourceResponse, ResourceList
+from app.schemas import ResourceCreate, ResourceList, ResourceResponse, ResourceUpdate
 
 router = APIRouter()
 
@@ -20,44 +19,37 @@ router = APIRouter()
 async def list_resources(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
-    resource_type: Optional[str] = Query(None),
-    availability_status: Optional[str] = Query(None),
-    is_active: Optional[bool] = Query(None),
-    search: Optional[str] = Query(None),
+    resource_type: str | None = Query(None),
+    availability_status: str | None = Query(None),
+    is_active: bool | None = Query(None),
+    search: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
     """List resources with filtering."""
     query = select(Resource)
-    
+
     if resource_type:
         query = query.where(Resource.resource_type == resource_type)
-    
+
     if availability_status:
         query = query.where(Resource.availability_status == availability_status)
-    
+
     if is_active is not None:
         query = query.where(Resource.is_active == is_active)
-    
+
     if search:
-        query = query.where(
-            (Resource.resource_code.ilike(f"%{search}%")) |
-            (Resource.name.ilike(f"%{search}%"))
-        )
-    
+        query = query.where((Resource.resource_code.ilike(f"%{search}%")) | (Resource.name.ilike(f"%{search}%")))
+
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query)
-    
+
     query = query.order_by(Resource.name).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
     resources = result.scalars().all()
-    
+
     return ResourceList(
-        items=resources,
-        total=total,
-        page=page,
-        page_size=page_size,
-        pages=ceil(total / page_size) if total > 0 else 0
+        items=resources, total=total, page=page, page_size=page_size, pages=ceil(total / page_size) if total > 0 else 0
     )
 
 
@@ -69,15 +61,10 @@ async def create_resource(
 ):
     """Create new resource."""
     # Check if resource code exists
-    result = await db.execute(
-        select(Resource).where(Resource.resource_code == resource_data.resource_code)
-    )
+    result = await db.execute(select(Resource).where(Resource.resource_code == resource_data.resource_code))
     if result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Resource code already exists"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Resource code already exists")
+
     resource = Resource(**resource_data.dict())
     db.add(resource)
     await db.commit()
@@ -92,17 +79,12 @@ async def get_resource(
     current_user: UUID = Depends(get_current_user),
 ):
     """Get resource by ID."""
-    result = await db.execute(
-        select(Resource).where(Resource.id == resource_id)
-    )
+    result = await db.execute(select(Resource).where(Resource.id == resource_id))
     resource = result.scalar_one_or_none()
-    
+
     if not resource:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resource not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
+
     return resource
 
 
@@ -114,20 +96,15 @@ async def update_resource(
     current_user: UUID = Depends(get_current_user),
 ):
     """Update resource."""
-    result = await db.execute(
-        select(Resource).where(Resource.id == resource_id)
-    )
+    result = await db.execute(select(Resource).where(Resource.id == resource_id))
     resource = result.scalar_one_or_none()
-    
+
     if not resource:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resource not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
+
     for field, value in resource_data.dict(exclude_unset=True).items():
         setattr(resource, field, value)
-    
+
     await db.commit()
     await db.refresh(resource)
     return resource
@@ -140,16 +117,11 @@ async def delete_resource(
     current_user: UUID = Depends(get_current_user),
 ):
     """Deactivate resource."""
-    result = await db.execute(
-        select(Resource).where(Resource.id == resource_id)
-    )
+    result = await db.execute(select(Resource).where(Resource.id == resource_id))
     resource = result.scalar_one_or_none()
-    
+
     if not resource:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resource not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
+
     resource.is_active = False
     await db.commit()

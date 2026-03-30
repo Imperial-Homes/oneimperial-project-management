@@ -1,24 +1,27 @@
 """Task API endpoints."""
 
+import logging
 from datetime import datetime
 from math import ceil
-from typing import Optional
 from uuid import UUID
-import httpx
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import httpx
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.deps import get_current_user
-from app.database import get_db
-from app.models import Task, TaskDependency, Project
-from app.schemas import TaskCreate, TaskUpdate, TaskResponse, TaskList
 from app.config import Settings
+from app.core.deps import get_current_user
+from app.core.resilience import get_breaker
+from app.database import get_db
+from app.models import Project, Task, TaskDependency
+from app.schemas import TaskCreate, TaskList, TaskResponse, TaskUpdate
+from app.utils.notification_service import notification_service
 
 router = APIRouter()
 settings = Settings()
+logger = logging.getLogger(__name__)
 
 
 def generate_task_code() -> str:
@@ -30,72 +33,61 @@ def generate_task_code() -> str:
 async def list_tasks(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
-    project_id: Optional[UUID] = Query(None),
-    phase_id: Optional[UUID] = Query(None),
-    assignee_id: Optional[UUID] = Query(None),
-    status: Optional[str] = Query(None),
-    priority: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
+    project_id: UUID | None = Query(None),
+    phase_id: UUID | None = Query(None),
+    assignee_id: UUID | None = Query(None),
+    status: str | None = Query(None),
+    priority: str | None = Query(None),
+    search: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
     """List tasks with filtering."""
     query = select(Task).options(selectinload(Task.dependencies))
-    
+
     if project_id:
         query = query.where(Task.project_id == project_id)
-    
+
     if phase_id:
         query = query.where(Task.phase_id == phase_id)
-    
+
     if assignee_id:
         query = query.where(Task.assignee_id == assignee_id)
-    
+
     if status:
         query = query.where(Task.status == status)
-    
+
     if priority:
         query = query.where(Task.priority == priority)
-    
+
     if search:
-        query = query.where(
-            (Task.task_code.ilike(f"%{search}%")) |
-            (Task.name.ilike(f"%{search}%"))
-        )
-    
+        query = query.where((Task.task_code.ilike(f"%{search}%")) | (Task.name.ilike(f"%{search}%")))
+
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query)
-    
+
     query = query.order_by(Task.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
     tasks = result.scalars().all()
-    
+
     return TaskList(
-        items=tasks,
-        total=total,
-        page=page,
-        page_size=page_size,
-        pages=ceil(total / page_size) if total > 0 else 0
+        items=tasks, total=total, page=page, page_size=page_size, pages=ceil(total / page_size) if total > 0 else 0
     )
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(
     task_data: TaskCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
     """Create new task with dependencies."""
     # Check if task code exists
-    result = await db.execute(
-        select(Task).where(Task.task_code == task_data.task_code)
-    )
+    result = await db.execute(select(Task).where(Task.task_code == task_data.task_code))
     if result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Task code already exists"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Task code already exists")
+
     # Create task
     task = Task(
         project_id=task_data.project_id,
@@ -110,7 +102,7 @@ async def create_task(
         estimated_hours=task_data.estimated_hours,
         priority=task_data.priority,
     )
-    
+
     # Create dependencies
     dependencies = []
     for dep_data in task_data.dependencies:
@@ -120,51 +112,81 @@ async def create_task(
             lag_days=dep_data.lag_days,
         )
         dependencies.append(dependency)
-    
+
     task.dependencies = dependencies
-    
+
     db.add(task)
     await db.commit()
     await db.refresh(task, ["dependencies"])
-    
+
     # Send email notification if task is assigned
     if task.assignee_id:
         try:
             from app.utils.email_service import email_service
-            
+
             # Get project details
-            project_result = await db.execute(
-                select(Project).where(Project.id == task.project_id)
-            )
+            project_result = await db.execute(select(Project).where(Project.id == task.project_id))
             project = project_result.scalar_one_or_none()
             project_name = project.name if project else "Unknown Project"
-            
-            # Get assignee email from user service
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{settings.USER_SERVICE_URL}/users/{task.assignee_id}",
-                    timeout=5.0
-                )
-                if response.status_code == 200:
-                    user_data = response.json()
-                    assignee_email = user_data.get("email")
-                    assignee_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
-                    
-                    if assignee_email:
-                        task_url = f"https://erp.imperialhomesghana.com/dashboard/project-management/tasks/{task.id}"
-                        email_service.send_task_assigned_email(
-                            to_email=assignee_email,
-                            assignee_name=assignee_name or "Team Member",
-                            task_title=task.name,
-                            project_name=project_name,
-                            due_date=task.due_date.strftime("%Y-%m-%d") if task.due_date else "Not set",
-                            priority=task.priority or "medium",
-                            task_url=task_url
+
+            # Get assignee email from user service — guarded by circuit breaker.
+            # If user-management is down or slow, the breaker opens after 3
+            # consecutive failures and skips all further calls for 30 s.
+            breaker = get_breaker("user-management")
+            if breaker.is_available():
+                try:
+                    async with httpx.AsyncClient(timeout=httpx.Timeout(5.0, connect=2.0)) as client:
+                        response = await client.get(f"{settings.USER_SERVICE_URL}/users/{task.assignee_id}")
+                    if response.status_code == 200:
+                        breaker.record_success()
+                        user_data = response.json()
+                        assignee_email = user_data.get("email")
+                        assignee_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+                        if assignee_email:
+                            task_url = (
+                                f"https://erp.imperialhomesghana.com/dashboard/project-management/tasks/{task.id}"
+                            )
+                            background_tasks.add_task(
+                                email_service.send_task_assigned_email,
+                                to_email=assignee_email,
+                                assignee_name=assignee_name or "Team Member",
+                                task_title=task.name,
+                                project_name=project_name,
+                                due_date=task.due_date.strftime("%Y-%m-%d") if task.due_date else "Not set",
+                                priority=task.priority or "medium",
+                                task_url=task_url,
+                            )
+                    else:
+                        breaker.record_failure()
+                        logger.warning(
+                            "User service returned non-200",
+                            extra={"status_code": response.status_code, "user_id": str(task.assignee_id)},
                         )
+                except (httpx.TransportError, httpx.TimeoutException) as exc:
+                    breaker.record_failure()
+                    logger.warning(
+                        "User service unreachable — skipping task assignment email",
+                        extra={"error": str(exc)},
+                    )
+            else:
+                logger.warning(
+                    "User service circuit open — skipping task assignment email",
+                    extra={"user_id": str(task.assignee_id)},
+                )
         except Exception as e:
             # Log error but don't fail task creation
-            print(f"Error sending task assignment email: {str(e)}")
-    
+            logger.warning("Failed to send task assignment email", extra={"error": str(e)})
+
+        # Send in-app notification
+        background_tasks.add_task(
+            notification_service.send_notification,
+            user_id=task.assignee_id,
+            title="New Task Assigned",
+            message=f"You have been assigned to task: '{task.name}'",
+            type="info",
+            link=f"/project-management/tasks/{task.id}",
+        )
+
     return task
 
 
@@ -175,19 +197,12 @@ async def get_task(
     current_user: UUID = Depends(get_current_user),
 ):
     """Get task by ID."""
-    result = await db.execute(
-        select(Task)
-        .options(selectinload(Task.dependencies))
-        .where(Task.id == task_id)
-    )
+    result = await db.execute(select(Task).options(selectinload(Task.dependencies)).where(Task.id == task_id))
     task = result.scalar_one_or_none()
-    
+
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
     return task
 
 
@@ -195,76 +210,107 @@ async def get_task(
 async def update_task(
     task_id: UUID,
     task_data: TaskUpdate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
     """Update task."""
-    result = await db.execute(
-        select(Task)
-        .options(selectinload(Task.dependencies))
-        .where(Task.id == task_id)
-    )
+    result = await db.execute(select(Task).options(selectinload(Task.dependencies)).where(Task.id == task_id))
     task = result.scalar_one_or_none()
-    
+
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
     # Track if assignee changed
     old_assignee_id = task.assignee_id
     assignee_changed = False
-    
+
     for field, value in task_data.dict(exclude_unset=True).items():
         if field == "assignee_id" and value != old_assignee_id:
             assignee_changed = True
         setattr(task, field, value)
-    
+
     if task.status == "done" and not task.completion_date:
         task.completion_date = datetime.now().date()
-    
+
     await db.commit()
     await db.refresh(task, ["dependencies"])
-    
+
     # Send email notification if assignee changed
     if assignee_changed and task.assignee_id:
         try:
             from app.utils.email_service import email_service
-            
+
             # Get project details
-            project_result = await db.execute(
-                select(Project).where(Project.id == task.project_id)
-            )
+            project_result = await db.execute(select(Project).where(Project.id == task.project_id))
             project = project_result.scalar_one_or_none()
             project_name = project.name if project else "Unknown Project"
-            
-            # Get assignee email from user service
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{settings.USER_SERVICE_URL}/users/{task.assignee_id}",
-                    timeout=5.0
-                )
-                if response.status_code == 200:
-                    user_data = response.json()
-                    assignee_email = user_data.get("email")
-                    assignee_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
-                    
-                    if assignee_email:
-                        task_url = f"https://erp.imperialhomesghana.com/dashboard/project-management/tasks/{task.id}"
-                        email_service.send_task_assigned_email(
-                            to_email=assignee_email,
-                            assignee_name=assignee_name or "Team Member",
-                            task_title=task.name,
-                            project_name=project_name,
-                            due_date=task.due_date.strftime("%Y-%m-%d") if task.due_date else "Not set",
-                            priority=task.priority or "medium",
-                            task_url=task_url
+
+            # Get assignee email from user service — circuit breaker protected.
+            breaker = get_breaker("user-management")
+            if breaker.is_available():
+                try:
+                    async with httpx.AsyncClient(timeout=httpx.Timeout(5.0, connect=2.0)) as client:
+                        response = await client.get(f"{settings.USER_SERVICE_URL}/users/{task.assignee_id}")
+                    if response.status_code == 200:
+                        breaker.record_success()
+                        user_data = response.json()
+                        assignee_email = user_data.get("email")
+                        assignee_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+                        if assignee_email:
+                            task_url = (
+                                f"https://erp.imperialhomesghana.com/dashboard/project-management/tasks/{task.id}"
+                            )
+                            background_tasks.add_task(
+                                email_service.send_task_assigned_email,
+                                to_email=assignee_email,
+                                assignee_name=assignee_name or "Team Member",
+                                task_title=task.name,
+                                project_name=project_name,
+                                due_date=task.due_date.strftime("%Y-%m-%d") if task.due_date else "Not set",
+                                priority=task.priority or "medium",
+                                task_url=task_url,
+                            )
+                    else:
+                        breaker.record_failure()
+                        logger.warning(
+                            "User service returned non-200",
+                            extra={"status_code": response.status_code, "user_id": str(task.assignee_id)},
                         )
+                except (httpx.TransportError, httpx.TimeoutException) as exc:
+                    breaker.record_failure()
+                    logger.warning(
+                        "User service unreachable — skipping reassignment email",
+                        extra={"error": str(exc)},
+                    )
+            else:
+                logger.warning(
+                    "User service circuit open — skipping reassignment email",
+                    extra={"user_id": str(task.assignee_id)},
+                )
         except Exception as e:
             # Log error but don't fail task update
-            print(f"Error sending task assignment email: {str(e)}")
-    
+            logger.warning("Failed to send task assignment email", extra={"error": str(e)})
+
+        # Send in-app notification
+        background_tasks.add_task(
+            notification_service.send_notification,
+            user_id=task.assignee_id,
+            title="Task Reassigned",
+            message=f"You have been assigned to task: '{task.name}'",
+            type="info",
+            link=f"/project-management/tasks/{task.id}",
+        )
+    elif task.assignee_id and not assignee_changed:
+        background_tasks.add_task(
+            notification_service.send_notification,
+            user_id=task.assignee_id,
+            title="Task Updated",
+            message=f"Task '{task.name}' has been updated.",
+            type="info",
+            link=f"/project-management/tasks/{task.id}",
+        )
+
     return task
 
 
@@ -276,19 +322,12 @@ async def delete_task(
 ):
     """Delete task."""
     # Load task with relationships to handle cascades properly
-    result = await db.execute(
-        select(Task)
-        .options(selectinload(Task.dependencies))
-        .where(Task.id == task_id)
-    )
+    result = await db.execute(select(Task).options(selectinload(Task.dependencies)).where(Task.id == task_id))
     task = result.scalar_one_or_none()
-    
+
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
     # Delete the task (cascade will handle dependencies)
     await db.delete(task)
     await db.commit()

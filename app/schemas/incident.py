@@ -1,7 +1,6 @@
 """Project Incident schemas."""
 
 from datetime import date, datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -11,94 +10,100 @@ from app.models.incident import IncidentSeverity, IncidentStatus, IncidentType
 
 class IncidentBase(BaseModel):
     """Base incident schema."""
+
     incident_type: IncidentType
     severity: IncidentSeverity
     title: str = Field(..., max_length=255)
     description: str
-    location: Optional[str] = Field(None, max_length=255)
+    location: str | None = Field(None, max_length=255)
     incident_date: date
     reported_date: date
-    reported_by_name: Optional[str] = Field(None, max_length=255)
-    assigned_to: Optional[UUID] = None
-    assigned_to_name: Optional[str] = Field(None, max_length=255)
-    injuries_count: Optional[str] = Field(None, max_length=50)
-    property_damage: Optional[str] = Field(None, max_length=255)
-    work_stoppage_hours: Optional[str] = Field(None, max_length=50)
-    estimated_cost: Optional[str] = Field(None, max_length=100)
-    notes: Optional[str] = None
-    attachments: Optional[str] = None
+    reported_by_name: str | None = Field(None, max_length=255)
+    assigned_to: UUID | None = None
+    assigned_to_name: str | None = Field(None, max_length=255)
+    injuries_count: str | None = Field(None, max_length=50)
+    property_damage: str | None = Field(None, max_length=255)
+    work_stoppage_hours: str | None = Field(None, max_length=50)
+    estimated_cost: str | None = Field(None, max_length=100)
+    notes: str | None = None
+    attachments: str | None = None
 
 
 class IncidentCreate(IncidentBase):
     """Schema for creating an incident."""
+
     project_id: UUID
 
 
 class IncidentUpdate(BaseModel):
     """Schema for updating an incident."""
-    incident_type: Optional[IncidentType] = None
-    severity: Optional[IncidentSeverity] = None
-    status: Optional[IncidentStatus] = None
-    title: Optional[str] = Field(None, max_length=255)
-    description: Optional[str] = None
-    location: Optional[str] = Field(None, max_length=255)
-    incident_date: Optional[date] = None
-    reported_date: Optional[date] = None
-    reported_by_name: Optional[str] = Field(None, max_length=255)
-    assigned_to: Optional[UUID] = None
-    assigned_to_name: Optional[str] = Field(None, max_length=255)
-    injuries_count: Optional[str] = Field(None, max_length=50)
-    property_damage: Optional[str] = Field(None, max_length=255)
-    work_stoppage_hours: Optional[str] = Field(None, max_length=50)
-    estimated_cost: Optional[str] = Field(None, max_length=100)
-    root_cause: Optional[str] = None
-    corrective_actions: Optional[str] = None
-    preventive_measures: Optional[str] = None
-    notes: Optional[str] = None
-    attachments: Optional[str] = None
-    requires_investigation: Optional[bool] = None
-    investigation_completed: Optional[bool] = None
-    follow_up_required: Optional[bool] = None
-    follow_up_date: Optional[date] = None
+
+    incident_type: IncidentType | None = None
+    severity: IncidentSeverity | None = None
+    status: IncidentStatus | None = None
+    title: str | None = Field(None, max_length=255)
+    description: str | None = None
+    location: str | None = Field(None, max_length=255)
+    incident_date: date | None = None
+    reported_date: date | None = None
+    reported_by_name: str | None = Field(None, max_length=255)
+    assigned_to: UUID | None = None
+    assigned_to_name: str | None = Field(None, max_length=255)
+    injuries_count: str | None = Field(None, max_length=50)
+    property_damage: str | None = Field(None, max_length=255)
+    work_stoppage_hours: str | None = Field(None, max_length=50)
+    estimated_cost: str | None = Field(None, max_length=100)
+    root_cause: str | None = None
+    corrective_actions: str | None = None
+    preventive_measures: str | None = None
+    notes: str | None = None
+    attachments: str | None = None
+    requires_investigation: bool | None = None
+    investigation_completed: bool | None = None
+    follow_up_required: bool | None = None
+    follow_up_date: date | None = None
 
 
 class ProjectInfo(BaseModel):
     """Basic project info for incident response."""
+
     id: UUID
     name: str
-    
+
     class Config:
         from_attributes = True
 
 
 class IncidentResponse(IncidentBase):
     """Schema for incident response."""
+
     id: UUID
     incident_number: str
     project_id: UUID
-    project: Optional[ProjectInfo] = None
+    project: ProjectInfo | None = None
     status: IncidentStatus
-    reported_by: Optional[UUID] = None
-    root_cause: Optional[str] = None
-    corrective_actions: Optional[str] = None
-    preventive_measures: Optional[str] = None
-    resolved_date: Optional[date] = None
-    resolved_by: Optional[UUID] = None
+    reported_by: UUID | None = None
+    root_cause: str | None = None
+    corrective_actions: str | None = None
+    preventive_measures: str | None = None
+    resolved_date: date | None = None
+    resolved_by: UUID | None = None
     requires_investigation: bool
     investigation_completed: bool
     follow_up_required: bool
-    follow_up_date: Optional[date] = None
+    follow_up_date: date | None = None
     created_at: datetime
-    created_by: Optional[UUID] = None
+    created_by: UUID | None = None
     updated_at: datetime
-    updated_by: Optional[UUID] = None
-    
+    updated_by: UUID | None = None
+
     class Config:
         from_attributes = True
 
 
 class IncidentList(BaseModel):
     """Schema for paginated incident list."""
+
     items: list[IncidentResponse]
     total: int
     page: int
@@ -108,8 +113,9 @@ class IncidentList(BaseModel):
 
 class IncidentResolve(BaseModel):
     """Schema for resolving an incident."""
+
     root_cause: str
     corrective_actions: str
-    preventive_measures: Optional[str] = None
+    preventive_measures: str | None = None
     resolved_date: date
-    notes: Optional[str] = None
+    notes: str | None = None

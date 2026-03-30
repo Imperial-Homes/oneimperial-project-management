@@ -1,7 +1,8 @@
 # FastAPI and Server
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-multipart==0.0.6
+fastapi>=0.115.12
+starlette>=0.49.1
+uvicorn[standard]==0.34.0
+python-multipart==0.0.22
 
 # Database
 sqlalchemy==2.0.25
@@ -9,9 +10,9 @@ asyncpg==0.29.0
 alembic==1.13.1
 
 # Authentication
-python-jose[cryptography]==3.3.0
 passlib[argon2]==1.7.4
-pyjwt==2.8.0
+pyjwt[crypto]==2.12.0
+cryptography==46.0.5
 
 # Validation
 pydantic==2.5.3
@@ -22,6 +23,7 @@ email-validator==2.1.0
 pytest==7.4.4
 pytest-asyncio==0.23.3
 pytest-cov==4.1.0
+tenacity==8.2.3
 httpx==0.26.0
 
 # Redis (optional)
@@ -32,3 +34,11 @@ python-dotenv==1.0.0
 
 # Email
 requests==2.31.0
+python-json-logger==2.0.7
+prometheus-fastapi-instrumentator==6.1.0
+
+# Pinned transitive deps to satisfy security scan
+jaraco.context>=6.1.0
+
+# PDF generation
+fpdf2>=2.7.9

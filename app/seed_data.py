@@ -1,19 +1,19 @@
-
 import asyncio
-import uuid
 import random
-from datetime import date, timedelta, datetime
-from decimal import Decimal
-from sqlalchemy import select, text, delete
+import uuid
+from datetime import date, timedelta
+
+from sqlalchemy import text
+
 from app.database import AsyncSessionLocal
+from app.models.incident import IncidentSeverity, IncidentStatus, IncidentType, ProjectIncident
+from app.models.payment import CertificateStatus, CertificateType, PaymentCertificate
 from app.models.project import Project, ProjectPhase
-from app.models.task import Task, TaskDependency
 from app.models.resource import Resource, ResourceAssignment
 from app.models.schedule import Milestone
-from app.models.incident import ProjectIncident, IncidentType, IncidentSeverity, IncidentStatus
-from app.models.variation import ProjectVariation, VariationType, VariationStatus
-from app.models.payment import PaymentCertificate, CertificateType, CertificateStatus
+from app.models.task import Task
 from app.models.timeline import ProjectProgress
+from app.models.variation import ProjectVariation, VariationStatus, VariationType
 
 # Constants
 CURRENCY = "GHS"
@@ -23,14 +23,70 @@ CLIENT_IDS = [uuid.uuid4() for _ in range(5)]
 MANAGER_IDS = [uuid.uuid4() for _ in range(5)]
 
 PROJECTS_DATA = [
-    {"name": "Cantonments Luxury Villa", "type": "Construction", "location": "Accra", "budget": 2500000, "status": "active", "priority": "high"},
-    {"name": "Kumasi Office Complex", "type": "Construction", "location": "Kumasi", "budget": 4800000, "status": "active", "priority": "critical"},
-    {"name": "East Legon Townhouses", "type": "Construction", "location": "Accra", "budget": 3200000, "status": "planning", "priority": "medium"},
-    {"name": "Airport Hills Renovation", "type": "Renovation", "location": "Accra", "budget": 850000, "status": "active", "priority": "high"},
-    {"name": "Tema Industrial Park", "type": "Construction", "location": "Tema", "budget": 6500000, "status": "on_hold", "priority": "medium"},
-    {"name": "Spintex Road Apartments", "type": "Construction", "location": "Accra", "budget": 1800000, "status": "completed", "priority": "low"},
-    {"name": "Trasacco Valley Extension", "type": "Landscaping", "location": "Accra", "budget": 950000, "status": "active", "priority": "medium"},
-    {"name": "Takoradi Harbour Offices", "type": "Interior Design", "location": "Takoradi", "budget": 1200000, "status": "active", "priority": "high"},
+    {
+        "name": "Cantonments Luxury Villa",
+        "type": "Construction",
+        "location": "Accra",
+        "budget": 2500000,
+        "status": "active",
+        "priority": "high",
+    },
+    {
+        "name": "Kumasi Office Complex",
+        "type": "Construction",
+        "location": "Kumasi",
+        "budget": 4800000,
+        "status": "active",
+        "priority": "critical",
+    },
+    {
+        "name": "East Legon Townhouses",
+        "type": "Construction",
+        "location": "Accra",
+        "budget": 3200000,
+        "status": "planning",
+        "priority": "medium",
+    },
+    {
+        "name": "Airport Hills Renovation",
+        "type": "Renovation",
+        "location": "Accra",
+        "budget": 850000,
+        "status": "active",
+        "priority": "high",
+    },
+    {
+        "name": "Tema Industrial Park",
+        "type": "Construction",
+        "location": "Tema",
+        "budget": 6500000,
+        "status": "on_hold",
+        "priority": "medium",
+    },
+    {
+        "name": "Spintex Road Apartments",
+        "type": "Construction",
+        "location": "Accra",
+        "budget": 1800000,
+        "status": "completed",
+        "priority": "low",
+    },
+    {
+        "name": "Trasacco Valley Extension",
+        "type": "Landscaping",
+        "location": "Accra",
+        "budget": 950000,
+        "status": "active",
+        "priority": "medium",
+    },
+    {
+        "name": "Takoradi Harbour Offices",
+        "type": "Interior Design",
+        "location": "Takoradi",
+        "budget": 1200000,
+        "status": "active",
+        "priority": "high",
+    },
 ]
 
 RESOURCES = [
@@ -52,13 +108,22 @@ PHASES = [
     {"name": "Finishing & Handover", "desc": "Plastering, painting, tiling, and final inspection"},
 ]
 
+
 async def clear_old_data(session):
     """Clear existing project data for a clean seed."""
     print("Clearing existing project data...")
     tables = [
-        "project_progress", "payment_certificates", "project_incidents",
-        "project_variations", "resource_assignments", "task_dependencies",
-        "milestones", "tasks", "project_phases", "projects", "resources"
+        "project_progress",
+        "payment_certificates",
+        "project_incidents",
+        "project_variations",
+        "resource_assignments",
+        "task_dependencies",
+        "milestones",
+        "tasks",
+        "project_phases",
+        "projects",
+        "resources",
     ]
     for table in tables:
         try:
@@ -68,10 +133,11 @@ async def clear_old_data(session):
     await session.flush()
     print("Old data cleared.")
 
+
 async def seed_resources(session):
     print("Seeding Resources...")
     created_resources = []
-    
+
     for res_data in RESOURCES:
         new_res = Resource(
             resource_code=res_data["code"],
@@ -82,25 +148,26 @@ async def seed_resources(session):
             cost_per_unit=res_data["cost"] if res_data["type"] == "material" else None,
             currency=CURRENCY,
             availability_status="available",
-            is_active=True
+            is_active=True,
         )
         session.add(new_res)
         created_resources.append(new_res)
-    
+
     await session.flush()
     print(f"Added {len(created_resources)} resources.")
     return created_resources
 
+
 async def seed_projects(session, resources):
     print("Seeding Projects...")
-    
+
     projects = []
     for i, p_data in enumerate(PROJECTS_DATA):
         start_offset = random.randint(0, 180)
         start_date = date.today() - timedelta(days=start_offset)
         duration = random.randint(180, 730)
         target_end_date = start_date + timedelta(days=duration)
-        
+
         completion = 0
         if p_data["status"] == "completed":
             completion = 100
@@ -108,9 +175,9 @@ async def seed_projects(session, resources):
             completion = random.randint(15, 75)
         elif p_data["status"] == "on_hold":
             completion = random.randint(5, 30)
-        
+
         project = Project(
-            project_code=f"PRJ-{2026}-{1001+i}",
+            project_code=f"PRJ-{2026}-{1001 + i}",
             name=p_data["name"],
             description=f"{p_data['type']} project managed by Imperial Homes in {p_data['location']}.",
             project_type=p_data["type"],
@@ -123,19 +190,19 @@ async def seed_projects(session, resources):
             currency=CURRENCY,
             manager_id=random.choice(MANAGER_IDS),
             location=p_data["location"],
-            is_active=True
+            is_active=True,
         )
         session.add(project)
         await session.flush()
         projects.append(project)
         print(f"  Added Project: {project.name} ({project.project_code})")
-        
+
         # --- PHASES ---
         created_phases = []
         for idx, ph_data in enumerate(PHASES):
             phase_start = start_date + timedelta(days=idx * 45)
             phase_end = phase_start + timedelta(days=40)
-            
+
             if p_data["status"] == "completed":
                 ph_status = "completed"
                 ph_completion = 100
@@ -152,7 +219,7 @@ async def seed_projects(session, resources):
             else:
                 ph_status = "pending"
                 ph_completion = 0
-            
+
             phase = ProjectPhase(
                 project_id=project.id,
                 name=ph_data["name"],
@@ -161,12 +228,12 @@ async def seed_projects(session, resources):
                 start_date=phase_start,
                 end_date=phase_end,
                 status=ph_status,
-                completion_percentage=ph_completion
+                completion_percentage=ph_completion,
             )
             session.add(phase)
             await session.flush()
             created_phases.append(phase)
-            
+
             # --- TASKS per Phase ---
             task_names = [
                 f"{ph_data['name']} - Planning",
@@ -177,7 +244,7 @@ async def seed_projects(session, resources):
                 task = Task(
                     project_id=project.id,
                     phase_id=phase.id,
-                    task_code=f"TSK-{project.project_code[-4:]}-{phase.sequence_number}-{t_idx+1}",
+                    task_code=f"TSK-{project.project_code[-4:]}-{phase.sequence_number}-{t_idx + 1}",
                     name=t_name,
                     description=f"Detailed work item for {phase.name}",
                     start_date=phase_start + timedelta(days=t_idx * 10),
@@ -185,11 +252,11 @@ async def seed_projects(session, resources):
                     estimated_hours=random.randint(20, 120),
                     status=ph_status if ph_status != "pending" else "todo",
                     priority="medium",
-                    completion_percentage=ph_completion
+                    completion_percentage=ph_completion,
                 )
                 session.add(task)
                 await session.flush()
-                
+
                 # Assign Resource
                 if resources:
                     assign = ResourceAssignment(
@@ -199,20 +266,28 @@ async def seed_projects(session, resources):
                         start_date=task.start_date,
                         end_date=task.due_date,
                         allocation_percentage=100,
-                        status="active"
+                        status="active",
                     )
                     session.add(assign)
 
         # --- MILESTONES ---
-        milestone_names = ["Design Approval", "Foundation Complete", "Structure Topped Out", "MEP Certified", "Final Handover"]
+        milestone_names = [
+            "Design Approval",
+            "Foundation Complete",
+            "Structure Topped Out",
+            "MEP Certified",
+            "Final Handover",
+        ]
         for m_idx, m_name in enumerate(milestone_names):
             milestone = Milestone(
                 project_id=project.id,
                 name=m_name,
                 description=f"Key milestone: {m_name}",
                 due_date=start_date + timedelta(days=(m_idx + 1) * 50),
-                status="achieved" if p_data["status"] == "completed" else ("achieved" if m_idx == 0 and p_data["status"] == "active" else "pending"),
-                priority="high"
+                status="achieved"
+                if p_data["status"] == "completed"
+                else ("achieved" if m_idx == 0 and p_data["status"] == "active" else "pending"),
+                priority="high",
             )
             session.add(milestone)
 
@@ -229,10 +304,10 @@ async def seed_projects(session, resources):
                 variation_amount=random.randint(10000, 50000),
                 new_total_amount=float(project.budget) + random.randint(10000, 50000),
                 justification="Client preference",
-                impact_on_timeline=random.randint(3, 14)
+                impact_on_timeline=random.randint(3, 14),
             )
             session.add(var)
-        
+
         # --- INCIDENTS ---
         if random.random() > 0.5:
             inc = ProjectIncident(
@@ -245,11 +320,11 @@ async def seed_projects(session, resources):
                 description="Incident occurred during construction activities",
                 incident_date=date.today() - timedelta(days=random.randint(5, 60)),
                 reported_date=date.today() - timedelta(days=random.randint(1, 5)),
-                location=f"Site {p_data['location']}, Zone {random.randint(1,5)}",
-                preventive_measures="Safety briefing conducted, area secured"
+                location=f"Site {p_data['location']}, Zone {random.randint(1, 5)}",
+                preventive_measures="Safety briefing conducted, area secured",
             )
             session.add(inc)
-            
+
         # --- PAYMENT CERTIFICATE ---
         cert = PaymentCertificate(
             certificate_number=f"CRT-{project.project_code[-4:]}-01",
@@ -260,22 +335,23 @@ async def seed_projects(session, resources):
             gross_amount=random.randint(50000, 200000),
             current_amount=random.randint(45000, 190000),
             net_amount=random.randint(40000, 180000),
-            description="Payment for phase completion works"
+            description="Payment for phase completion works",
         )
         session.add(cert)
-        
+
         # --- PROJECT PROGRESS ---
         prog = ProjectProgress(
             project_id=project.id,
             overall_progress=completion,
             physical_progress=completion + random.randint(-5, 5),
-            financial_progress=random.randint(max(0, completion-15), min(100, completion+15)),
+            financial_progress=random.randint(max(0, completion - 15), min(100, completion + 15)),
             schedule_variance=random.randint(-10, 10),
-            cost_variance=random.randint(-50000, 50000)
+            cost_variance=random.randint(-50000, 50000),
         )
         session.add(prog)
 
     return projects
+
 
 async def main():
     async with AsyncSessionLocal() as session:
@@ -283,19 +359,21 @@ async def main():
             # Clear old data first
             await clear_old_data(session)
             await session.commit()
-            
+
             # Seed fresh data
             async with AsyncSessionLocal() as session2:
                 resources = await seed_resources(session2)
                 projects = await seed_projects(session2, resources)
                 await session2.commit()
-            
-            print(f"\nProject Management Seeding completed successfully!")
+
+            print("\nProject Management Seeding completed successfully!")
             print(f"Created {len(PROJECTS_DATA)} projects with phases, tasks, milestones, and more.")
         except Exception as e:
             print(f"Error seeding project management data: {e}")
             import traceback
+
             traceback.print_exc()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

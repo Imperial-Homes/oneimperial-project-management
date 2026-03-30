@@ -1,19 +1,19 @@
 """Timeline and Progress schemas."""
 
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
-
+from pydantic import BaseModel, Field
 
 # ============================================================================
 # Timeline Schemas
 # ============================================================================
 
+
 class TaskDependencyBase(BaseModel):
     """Base task dependency schema."""
+
     predecessor_task_id: UUID
     successor_task_id: UUID
     dependency_type: str = Field(default="FS", pattern="^(FS|SS|FF|SF)$")
@@ -22,18 +22,21 @@ class TaskDependencyBase(BaseModel):
 
 class TaskDependencyCreate(TaskDependencyBase):
     """Create task dependency schema."""
+
     timeline_id: UUID
 
 
 class TaskDependencyUpdate(BaseModel):
     """Update task dependency schema."""
-    dependency_type: Optional[str] = Field(None, pattern="^(FS|SS|FF|SF)$")
-    lag_days: Optional[int] = None
-    is_critical: Optional[bool] = None
+
+    dependency_type: str | None = Field(None, pattern="^(FS|SS|FF|SF)$")
+    lag_days: int | None = None
+    is_critical: bool | None = None
 
 
 class TaskDependencyResponse(TaskDependencyBase):
     """Task dependency response schema."""
+
     id: UUID
     timeline_id: UUID
     is_critical: bool
@@ -45,32 +48,36 @@ class TaskDependencyResponse(TaskDependencyBase):
 
 class ProjectTimelineBase(BaseModel):
     """Base project timeline schema."""
+
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
+    description: str | None = None
     timeline_type: str = Field(default="master", pattern="^(master|phase|detailed)$")
 
 
 class ProjectTimelineCreate(ProjectTimelineBase):
     """Create project timeline schema."""
+
     project_id: UUID
 
 
 class ProjectTimelineUpdate(BaseModel):
     """Update project timeline schema."""
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    is_active: Optional[bool] = None
+
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
+    is_active: bool | None = None
 
 
 class ProjectTimelineResponse(ProjectTimelineBase):
     """Project timeline response schema."""
+
     id: UUID
     project_id: UUID
     version: int
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    dependencies: List[TaskDependencyResponse] = []
+    dependencies: list[TaskDependencyResponse] = []
 
     class Config:
         from_attributes = True
@@ -80,33 +87,37 @@ class ProjectTimelineResponse(ProjectTimelineBase):
 # Progress Tracking Schemas
 # ============================================================================
 
+
 class ProjectProgressBase(BaseModel):
     """Base project progress schema."""
+
     overall_progress: Decimal = Field(..., ge=0, le=100)
     physical_progress: Decimal = Field(default=Decimal("0"), ge=0, le=100)
     financial_progress: Decimal = Field(default=Decimal("0"), ge=0, le=100)
     schedule_variance: Decimal = Decimal("0")
     cost_variance: Decimal = Decimal("0")
-    earned_value: Optional[Decimal] = None
-    planned_value: Optional[Decimal] = None
-    actual_cost: Optional[Decimal] = None
-    notes: Optional[str] = None
+    earned_value: Decimal | None = None
+    planned_value: Decimal | None = None
+    actual_cost: Decimal | None = None
+    notes: str | None = None
 
 
 class ProjectProgressCreate(ProjectProgressBase):
     """Create project progress schema."""
+
     project_id: UUID
-    recorded_date: Optional[datetime] = None
+    recorded_date: datetime | None = None
 
 
 class ProjectProgressResponse(ProjectProgressBase):
     """Project progress response schema."""
+
     id: UUID
     project_id: UUID
     recorded_date: datetime
-    schedule_performance_index: Optional[Decimal] = None
-    cost_performance_index: Optional[Decimal] = None
-    recorded_by: Optional[UUID] = None
+    schedule_performance_index: Decimal | None = None
+    cost_performance_index: Decimal | None = None
+    recorded_by: UUID | None = None
     created_at: datetime
 
     class Config:
@@ -115,36 +126,40 @@ class ProjectProgressResponse(ProjectProgressBase):
 
 class TaskProgressBase(BaseModel):
     """Base task progress schema."""
+
     completion_percentage: Decimal = Field(..., ge=0, le=100)
     hours_worked: Decimal = Field(default=Decimal("0"), ge=0)
-    hours_remaining: Optional[Decimal] = Field(None, ge=0)
+    hours_remaining: Decimal | None = Field(None, ge=0)
     status: str = Field(..., pattern="^(not_started|in_progress|completed|blocked)$")
-    blockers: Optional[str] = None
-    notes: Optional[str] = None
+    blockers: str | None = None
+    notes: str | None = None
 
 
 class TaskProgressCreate(TaskProgressBase):
     """Create task progress schema."""
+
     task_id: UUID
-    recorded_date: Optional[datetime] = None
+    recorded_date: datetime | None = None
 
 
 class TaskProgressUpdate(BaseModel):
     """Update task progress schema."""
-    completion_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
-    hours_worked: Optional[Decimal] = Field(None, ge=0)
-    hours_remaining: Optional[Decimal] = Field(None, ge=0)
-    status: Optional[str] = Field(None, pattern="^(not_started|in_progress|completed|blocked)$")
-    blockers: Optional[str] = None
-    notes: Optional[str] = None
+
+    completion_percentage: Decimal | None = Field(None, ge=0, le=100)
+    hours_worked: Decimal | None = Field(None, ge=0)
+    hours_remaining: Decimal | None = Field(None, ge=0)
+    status: str | None = Field(None, pattern="^(not_started|in_progress|completed|blocked)$")
+    blockers: str | None = None
+    notes: str | None = None
 
 
 class TaskProgressResponse(TaskProgressBase):
     """Task progress response schema."""
+
     id: UUID
     task_id: UUID
     recorded_date: datetime
-    recorded_by: Optional[UUID] = None
+    recorded_by: UUID | None = None
     created_at: datetime
 
     class Config:
@@ -155,42 +170,47 @@ class TaskProgressResponse(TaskProgressBase):
 # Milestone Schemas
 # ============================================================================
 
+
 class MilestoneBase(BaseModel):
     """Base milestone schema."""
+
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
+    description: str | None = None
     target_date: datetime
     priority: str = Field(default="medium", pattern="^(low|medium|high|critical)$")
-    completion_criteria: Optional[str] = None
-    deliverables: Optional[List[dict]] = None
+    completion_criteria: str | None = None
+    deliverables: list[dict] | None = None
     is_critical: bool = False
 
 
 class MilestoneCreate(MilestoneBase):
     """Create milestone schema."""
+
     project_id: UUID
 
 
 class MilestoneUpdate(BaseModel):
     """Update milestone schema."""
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    target_date: Optional[datetime] = None
-    actual_date: Optional[datetime] = None
-    status: Optional[str] = Field(None, pattern="^(pending|achieved|missed|cancelled)$")
-    priority: Optional[str] = Field(None, pattern="^(low|medium|high|critical)$")
-    completion_criteria: Optional[str] = None
-    deliverables: Optional[List[dict]] = None
-    is_critical: Optional[bool] = None
+
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
+    target_date: datetime | None = None
+    actual_date: datetime | None = None
+    status: str | None = Field(None, pattern="^(pending|achieved|missed|cancelled)$")
+    priority: str | None = Field(None, pattern="^(low|medium|high|critical)$")
+    completion_criteria: str | None = None
+    deliverables: list[dict] | None = None
+    is_critical: bool | None = None
 
 
 class MilestoneResponse(MilestoneBase):
     """Milestone response schema."""
+
     id: UUID
     project_id: UUID
-    actual_date: Optional[datetime] = None
+    actual_date: datetime | None = None
     status: str
-    achieved_by: Optional[UUID] = None
+    achieved_by: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -202,8 +222,10 @@ class MilestoneResponse(MilestoneBase):
 # Resource Utilization Schemas
 # ============================================================================
 
+
 class ResourceUtilizationBase(BaseModel):
     """Base resource utilization schema."""
+
     period_start: datetime
     period_end: datetime
     total_available_hours: Decimal = Field(..., gt=0)
@@ -216,16 +238,18 @@ class ResourceUtilizationBase(BaseModel):
 
 class ResourceUtilizationCreate(ResourceUtilizationBase):
     """Create resource utilization schema."""
+
     resource_id: UUID
 
 
 class ResourceUtilizationResponse(ResourceUtilizationBase):
     """Resource utilization response schema."""
+
     id: UUID
     resource_id: UUID
-    utilization_rate: Optional[Decimal] = None
-    efficiency_rate: Optional[Decimal] = None
-    idle_hours: Optional[Decimal] = None
+    utilization_rate: Decimal | None = None
+    efficiency_rate: Decimal | None = None
+    idle_hours: Decimal | None = None
     calculated_at: datetime
 
     class Config:
@@ -236,29 +260,32 @@ class ResourceUtilizationResponse(ResourceUtilizationBase):
 # Gantt Chart Data Schemas
 # ============================================================================
 
+
 class GanttTaskData(BaseModel):
     """Gantt chart task data."""
+
     id: UUID
     name: str
     start_date: date
     end_date: date
     duration: int  # days
     progress: Decimal  # 0-100
-    dependencies: List[UUID] = []
+    dependencies: list[UUID] = []
     is_milestone: bool = False
     is_critical: bool = False
-    assigned_resources: List[dict] = []
+    assigned_resources: list[dict] = []
 
 
 class GanttChartResponse(BaseModel):
     """Gantt chart response schema."""
+
     project_id: UUID
     project_name: str
     start_date: date
     end_date: date
-    tasks: List[GanttTaskData]
-    milestones: List[MilestoneResponse]
-    critical_path: List[UUID]
+    tasks: list[GanttTaskData]
+    milestones: list[MilestoneResponse]
+    critical_path: list[UUID]
     total_duration: int  # days
 
 
@@ -266,8 +293,10 @@ class GanttChartResponse(BaseModel):
 # Progress Summary Schemas
 # ============================================================================
 
+
 class ProgressSummary(BaseModel):
     """Project progress summary."""
+
     project_id: UUID
     project_name: str
     overall_progress: Decimal
@@ -288,6 +317,7 @@ class ProgressSummary(BaseModel):
 
 class ResourceUtilizationSummary(BaseModel):
     """Resource utilization summary."""
+
     resource_id: UUID
     resource_name: str
     resource_type: str

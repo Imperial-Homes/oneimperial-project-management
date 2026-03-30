@@ -1,8 +1,7 @@
 """Project models."""
 
-from datetime import date, datetime
-from decimal import Decimal
-from uuid import UUID, uuid4
+from datetime import datetime
+from uuid import uuid4
 
 from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
@@ -13,9 +12,9 @@ from app.database import Base
 
 class Project(Base):
     """Project model."""
-    
+
     __tablename__ = "projects"
-    
+
     id = Column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
     project_code = Column(String(20), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False, index=True)
@@ -25,7 +24,9 @@ class Project(Base):
     start_date = Column(Date)
     target_end_date = Column(Date)
     actual_end_date = Column(Date)
-    status = Column(String(50), nullable=False, default="planning", index=True)  # planning, active, on_hold, completed, cancelled
+    status = Column(
+        String(50), nullable=False, default="planning", index=True
+    )  # planning, active, on_hold, completed, cancelled
     priority = Column(String(20), nullable=False, default="medium")  # low, medium, high, critical
     budget = Column(Numeric(15, 2))
     currency = Column(String(3), default="GHS")
@@ -36,7 +37,7 @@ class Project(Base):
     created_by = Column(PostgreSQLUUID(as_uuid=True))
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     updated_by = Column(PostgreSQLUUID(as_uuid=True))
-    
+
     # Relationships
     phases = relationship("ProjectPhase", back_populates="project", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
@@ -49,9 +50,9 @@ class Project(Base):
 
 class ProjectPhase(Base):
     """Project Phase model."""
-    
+
     __tablename__ = "project_phases"
-    
+
     id = Column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id = Column(PostgreSQLUUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(100), nullable=False)
@@ -63,7 +64,7 @@ class ProjectPhase(Base):
     completion_percentage = Column(Numeric(5, 2), default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     project = relationship("Project", back_populates="phases")
     tasks = relationship("Task", back_populates="phase")
