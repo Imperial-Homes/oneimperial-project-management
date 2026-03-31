@@ -43,7 +43,7 @@ class ProjectBase(BaseModel):
     target_end_date: date | None = None
     priority: str = Field(default="medium", max_length=20)
     budget: Decimal | None = Field(None, ge=0)
-    currency: str = Field(default="GHS", max_length=3)
+    currency: str = Field(default="GHS", max_length=10)
     manager_id: UUID | None = None
     location: str | None = Field(None, max_length=255)
 

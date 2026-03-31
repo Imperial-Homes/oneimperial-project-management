@@ -20,7 +20,7 @@ class PaymentCertificateBase(BaseModel):
     retention_percentage: Decimal = Field(default=Decimal(5.0), ge=0, le=100)
     retention_amount: Decimal = Field(default=Decimal(0), ge=0)
     net_amount: Decimal = Field(..., gt=0)
-    currency: str = Field(default="GHS", max_length=3)
+    currency: str = Field(default="GHS", max_length=10)
     period_from: date | None = None
     period_to: date | None = None
     milestone_id: UUID | None = None
@@ -52,7 +52,7 @@ class PaymentCertificateUpdate(BaseModel):
     retention_percentage: Decimal | None = Field(None, ge=0, le=100)
     retention_amount: Decimal | None = Field(None, ge=0)
     net_amount: Decimal | None = Field(None, gt=0)
-    currency: str | None = Field(None, max_length=3)
+    currency: str | None = Field(None, max_length=10)
     period_from: date | None = None
     period_to: date | None = None
     milestone_id: UUID | None = None

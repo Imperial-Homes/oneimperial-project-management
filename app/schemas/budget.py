@@ -18,7 +18,7 @@ class ProjectBudgetCreate(BaseModel):
     equipment_budget: Decimal = Field(default=0, ge=0)
     other_budget: Decimal = Field(default=0, ge=0)
     contingency_percentage: Decimal = Field(default=0, ge=0, le=100)
-    currency: str = Field(default="GHS", max_length=3)
+    currency: str = Field(default="GHS", max_length=10)
 
 
 class ProjectBudgetResponse(ProjectBudgetCreate):
@@ -44,7 +44,7 @@ class ProjectCostCreate(BaseModel):
     cost_category: str = Field(..., max_length=100)
     description: str | None = None
     amount: Decimal = Field(..., ge=0)
-    currency: str = Field(default="GHS", max_length=3)
+    currency: str = Field(default="GHS", max_length=10)
     transaction_date: date
     reference_number: str | None = Field(None, max_length=100)
 

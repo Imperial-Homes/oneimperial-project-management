@@ -15,7 +15,7 @@ class RetentionReleaseCreate(BaseModel):
     project_id: UUID
     tranche: RetentionTranche
     amount_requested: Decimal = Field(..., gt=0)
-    currency: str = Field(default="GHS", max_length=3)
+    currency: str = Field(default="GHS", max_length=10)
     notes: str | None = None
     supporting_docs: str | None = None
 
@@ -25,7 +25,7 @@ class RetentionReleaseUpdate(BaseModel):
 
     tranche: RetentionTranche | None = None
     amount_requested: Decimal | None = Field(None, gt=0)
-    currency: str | None = Field(None, max_length=3)
+    currency: str | None = Field(None, max_length=10)
     notes: str | None = None
     supporting_docs: str | None = None
 
