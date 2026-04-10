@@ -14,6 +14,18 @@ from app.schemas import ProjectBudgetCreate, ProjectBudgetResponse, ProjectCostC
 router = APIRouter()
 
 
+@router.get("", response_model=list[ProjectBudgetResponse])
+async def list_budgets(
+    db: AsyncSession = Depends(get_db),
+    current_user: UUID = Depends(get_current_user),
+):
+    """List all project budgets."""
+    result = await db.execute(
+        select(ProjectBudget).order_by(ProjectBudget.version.desc())
+    )
+    return result.scalars().all()
+
+
 @router.get("/{project_id}", response_model=list[ProjectBudgetResponse])
 async def get_project_budgets(
     project_id: UUID,

@@ -20,7 +20,7 @@ class VariationBase(BaseModel):
     variation_amount: Decimal = Field(..., ge=0)
     original_amount: Decimal = Field(default=0, ge=0)
     new_total_amount: Decimal | None = Field(None, ge=0)
-    currency: str = Field(default="GHS", max_length=3)
+    currency: str = Field(default="GHS", max_length=10)
     impact_on_timeline: int = Field(default=0)
     original_completion_date: date | None = None
     new_completion_date: date | None = None
@@ -49,7 +49,7 @@ class VariationUpdate(BaseModel):
     variation_amount: Decimal | None = Field(None, ge=0)
     original_amount: Decimal | None = Field(None, ge=0)
     new_total_amount: Decimal | None = Field(None, ge=0)
-    currency: str | None = Field(None, max_length=3)
+    currency: str | None = Field(None, max_length=10)
     impact_on_timeline: int | None = None
     original_completion_date: date | None = None
     new_completion_date: date | None = None

@@ -33,6 +33,7 @@ async def get_next_handover_id(db: AsyncSession) -> str:
     return f"HP-{year}-{seq:04d}"
 
 
+@router.post("", response_model=HandoverPackResponse, status_code=201)
 @router.post("/", response_model=HandoverPackResponse, status_code=201)
 async def create_handover(data: HandoverPackCreate, db: AsyncSession = Depends(get_db)):
     handover_id = await get_next_handover_id(db)

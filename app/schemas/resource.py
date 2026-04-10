@@ -19,7 +19,7 @@ class ResourceBase(BaseModel):
     material_id: UUID | None = None
     cost_per_hour: Decimal | None = Field(None, ge=0)
     cost_per_unit: Decimal | None = Field(None, ge=0)
-    currency: str = Field(default="GHS", max_length=3)
+    currency: str = Field(default="GHS", max_length=10)
     availability_status: str = Field(default="available", max_length=50)
     capacity_per_day: Decimal | None = Field(None, ge=0)
     unit_of_measure: str | None = Field(None, max_length=50)
