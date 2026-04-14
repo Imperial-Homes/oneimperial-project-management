@@ -18,7 +18,7 @@ router = APIRouter()
 @router.get("", response_model=ResourceList)
 async def list_resources(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
+    page_size: int = Query(50, ge=1, le=500),
     resource_type: str | None = Query(None),
     availability_status: str | None = Query(None),
     is_active: bool | None = Query(None),

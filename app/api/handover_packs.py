@@ -48,7 +48,7 @@ async def create_handover(data: HandoverPackCreate, db: AsyncSession = Depends(g
 @router.get("", response_model=HandoverPackList)
 async def get_handovers(
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=500),
     search: str | None = None,
     status: str | None = None,
     db: AsyncSession = Depends(get_db),
