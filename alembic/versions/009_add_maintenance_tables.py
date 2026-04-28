@@ -10,7 +10,7 @@ from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
 revision = "009_add_maintenance_tables"
-down_revision = "008_add_retention_releases"
+down_revision = "008"
 branch_labels = None
 depends_on = None
 
