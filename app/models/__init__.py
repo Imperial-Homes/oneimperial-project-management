@@ -20,6 +20,12 @@ from app.models.timeline import (
 )
 from app.models.variation import ProjectVariation
 from app.models.retention import RetentionRelease
+from app.models.maintenance import (
+    MaintenancePayment,
+    MaintenanceBudget,
+    MaintenanceServiceFee,
+    RentalScheduleEntry,
+)
 
 __all__ = [
     "Project",
@@ -45,4 +51,8 @@ __all__ = [
     "ProgressReport",
     "HandoverPack",
     "RetentionRelease",
+    "MaintenancePayment",
+    "MaintenanceBudget",
+    "MaintenanceServiceFee",
+    "RentalScheduleEntry",
 ]
