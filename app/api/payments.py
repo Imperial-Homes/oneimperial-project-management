@@ -140,7 +140,7 @@ def generate_certificate_number() -> str:
 @router.get("", response_model=PaymentCertificateList)
 async def list_certificates(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
+    page_size: int = Query(50, ge=1, le=500),
     project_id: UUID | None = Query(None),
     certificate_type: CertificateType | None = Query(None),
     status: CertificateStatus | None = Query(None),

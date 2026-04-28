@@ -14,6 +14,7 @@ from app.api import (
     dashboard,
     handover_packs,
     incidents,
+    maintenance,
     payments,
     progress,
     progress_reports,
@@ -106,6 +107,7 @@ app.include_router(site_visits.router, prefix="/site-visits", tags=["Site Visits
 app.include_router(progress_reports.router, prefix="/progress-reports", tags=["Progress Reports"])
 app.include_router(handover_packs.router, prefix="/handover-packs", tags=["Handover Packs"])
 app.include_router(retention.router, prefix="/retention", tags=["Retention Releases"])
+app.include_router(maintenance.router, prefix="/maintenance", tags=["Maintenance"])
 
 # Prometheus RED metrics — exposed at /metrics for Prometheus scraping
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)

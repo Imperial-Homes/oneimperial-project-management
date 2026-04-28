@@ -73,7 +73,7 @@ async def get_site_visit_stats(
 @router.get("", response_model=SiteVisitList)
 async def list_site_visits(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
+    page_size: int = Query(50, ge=1, le=500),
     search: str | None = Query(None),
     status_filter: str | None = Query(None, alias="status"),
     db: AsyncSession = Depends(get_db),

@@ -32,7 +32,7 @@ def generate_task_code() -> str:
 @router.get("", response_model=TaskList)
 async def list_tasks(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
+    page_size: int = Query(50, ge=1, le=500),
     project_id: UUID | None = Query(None),
     phase_id: UUID | None = Query(None),
     assignee_id: UUID | None = Query(None),

@@ -25,7 +25,7 @@ def generate_project_code() -> str:
 @router.get("", response_model=ProjectList)
 async def list_projects(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
+    page_size: int = Query(50, ge=1, le=500),
     status: str | None = Query(None),
     project_type: str | None = Query(None),
     manager_id: UUID | None = Query(None),

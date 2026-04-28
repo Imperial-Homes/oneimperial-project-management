@@ -25,7 +25,7 @@ def generate_variation_number() -> str:
 @router.get("", response_model=VariationList)
 async def list_variations(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
+    page_size: int = Query(50, ge=1, le=500),
     project_id: UUID | None = Query(None),
     status: VariationStatus | None = Query(None),
     search: str | None = Query(None),

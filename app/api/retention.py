@@ -143,7 +143,7 @@ def _post_retention_gl(
 @router.get("", response_model=RetentionReleaseList)
 async def list_retention_releases(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
+    page_size: int = Query(50, ge=1, le=500),
     project_id: UUID | None = Query(None),
     status: RetentionStatus | None = Query(None),
     tranche: RetentionTranche | None = Query(None),
