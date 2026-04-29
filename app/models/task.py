@@ -25,6 +25,8 @@ class Task(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text)
     assignee_id = Column(PostgreSQLUUID(as_uuid=True), index=True)
+    assigned_to_name = Column(String(255))
+    assigned_by_name = Column(String(255))
     start_date = Column(Date)
     due_date = Column(Date)
     completion_date = Column(Date)

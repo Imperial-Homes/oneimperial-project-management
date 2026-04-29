@@ -36,6 +36,8 @@ class TaskBase(BaseModel):
     name: str = Field(..., max_length=255)
     description: str | None = None
     assignee_id: UUID | None = None
+    assigned_to_name: str | None = None
+    assigned_by_name: str | None = None
     start_date: date | None = None
     due_date: date | None = None
     estimated_hours: Decimal | None = Field(None, ge=0)
@@ -54,6 +56,8 @@ class TaskUpdate(BaseModel):
     name: str | None = Field(None, max_length=255)
     description: str | None = None
     assignee_id: UUID | None = None
+    assigned_to_name: str | None = None
+    assigned_by_name: str | None = None
     start_date: date | None = None
     due_date: date | None = None
     estimated_hours: Decimal | None = Field(None, ge=0)
