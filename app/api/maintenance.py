@@ -148,6 +148,73 @@ async def create_payment(
     return {"id": str(payment.id), "payment_reference": payment.payment_reference}
 
 
+class PaymentUpdate(BaseModel):
+    payment_type: Optional[str] = None
+    project: Optional[str] = None
+    block: Optional[str] = None
+    unit: Optional[str] = None
+    payer_name: Optional[str] = None
+    payer_contact: Optional[str] = None
+    amount: Optional[float] = None
+    currency: Optional[str] = None
+    payment_date: Optional[str] = None
+    payment_method: Optional[str] = None
+    bank_name: Optional[str] = None
+    cheque_number: Optional[str] = None
+    received_by: Optional[str] = None
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None
+
+
+@router.patch("/payments/{payment_id}")
+async def update_payment(
+    payment_id: UUID,
+    data: PaymentUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UUID = Depends(get_current_user),
+):
+    result = await db.execute(select(MaintenancePayment).where(MaintenancePayment.id == payment_id))
+    payment = result.scalar_one_or_none()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    for field, val in data.model_dump(exclude_none=True).items():
+        if field == "amount":
+            payment.amount = Decimal(str(val))
+        elif field == "payment_date":
+            try:
+                payment.payment_date = date.fromisoformat(val)
+            except (ValueError, TypeError):
+                pass
+        else:
+            setattr(payment, field, val)
+    payment.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(payment)
+
+    return {
+        "id": str(payment.id),
+        "payment_reference": payment.payment_reference,
+        "payment_type": payment.payment_type,
+        "project": payment.project,
+        "block": payment.block,
+        "unit": payment.unit,
+        "payer_name": payment.payer_name,
+        "payer_contact": payment.payer_contact,
+        "amount": float(payment.amount),
+        "currency": payment.currency,
+        "payment_date": payment.payment_date.isoformat() if payment.payment_date else None,
+        "payment_method": payment.payment_method,
+        "bank_name": payment.bank_name,
+        "cheque_number": payment.cheque_number,
+        "received_by": payment.received_by,
+        "description": payment.description,
+        "notes": payment.notes,
+        "status": payment.status,
+    }
+
+
 @router.delete("/payments/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_payment(
     payment_id: UUID,
@@ -454,6 +521,51 @@ async def create_service_fee(
     return _fee_row(fee)
 
 
+class ServiceFeeUpdate(BaseModel):
+    project: Optional[str] = None
+    block: Optional[str] = None
+    unit: Optional[str] = None
+    owner_name: Optional[str] = None
+    owner_contact: Optional[str] = None
+    fee_type: Optional[str] = None
+    amount: Optional[float] = None
+    currency: Optional[str] = None
+    billing_period: Optional[str] = None
+    due_date: Optional[str] = None
+    status: Optional[str] = None
+    payment_date: Optional[str] = None
+    receipt_number: Optional[str] = None
+    notes: Optional[str] = None
+
+
+@router.patch("/service-fees/{fee_id}")
+async def update_service_fee(
+    fee_id: UUID,
+    data: ServiceFeeUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UUID = Depends(get_current_user),
+):
+    result = await db.execute(select(MaintenanceServiceFee).where(MaintenanceServiceFee.id == fee_id))
+    fee = result.scalar_one_or_none()
+    if not fee:
+        raise HTTPException(status_code=404, detail="Service fee not found")
+
+    for field, val in data.model_dump(exclude_none=True).items():
+        if field == "amount":
+            fee.amount = Decimal(str(val))
+        elif field in ("due_date", "payment_date"):
+            try:
+                setattr(fee, field, date.fromisoformat(val))
+            except (ValueError, TypeError):
+                pass
+        else:
+            setattr(fee, field, val)
+    fee.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(fee)
+    return _fee_row(fee)
+
+
 @router.delete("/service-fees/{fee_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_service_fee(
     fee_id: UUID,
@@ -466,6 +578,107 @@ async def delete_service_fee(
         raise HTTPException(status_code=404, detail="Service fee not found")
     await db.delete(fee)
     await db.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SERVICE FEE IMPORT (Excel)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/import/service-fees")
+async def import_service_fees(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: UUID = Depends(get_current_user),
+):
+    """Import service fee records from an Excel file.
+    Expected columns (flexible matching): Project, Block, Unit, Owner Name,
+    Owner Contact, Fee Type, Amount, Currency, Billing Period, Due Date,
+    Status, Payment Date, Receipt Number, Notes.
+    """
+    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Please upload an .xlsx or .xls file")
+
+    try:
+        import openpyxl
+    except ImportError:
+        raise HTTPException(status_code=500, detail="openpyxl not installed on server")
+
+    content = await file.read()
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse Excel file: {e}")
+
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        raise HTTPException(status_code=400, detail="File is empty")
+
+    # Find header row
+    header_idx = None
+    for i, row in enumerate(rows):
+        row_text = " ".join(str(c or "").lower() for c in row)
+        if ("unit" in row_text or "owner" in row_text) and ("amount" in row_text or "fee" in row_text):
+            header_idx = i
+            break
+
+    if header_idx is None:
+        header_idx = 0
+
+    headers = [str(c or "").strip().lower() for c in rows[header_idx]]
+
+    def col(frags: list[str]) -> Optional[int]:
+        for i, h in enumerate(headers):
+            if any(f in h for f in frags):
+                return i
+        return None
+
+    c_project = col(["project", "property"])
+    c_block = col(["block", "building"])
+    c_unit = col(["unit", "apartment", "suite"])
+    c_owner = col(["owner name", "owner"])
+    c_contact = col(["contact", "phone", "email"])
+    c_fee_type = col(["fee type", "type"])
+    c_amount = col(["amount"])
+    c_currency = col(["currency"])
+    c_period = col(["billing period", "period", "billing"])
+    c_due = col(["due date", "due"])
+    c_status = col(["status"])
+    c_pay_date = col(["payment date", "paid date"])
+    c_receipt = col(["receipt", "reference"])
+    c_notes = col(["notes", "remarks"])
+
+    count = 0
+    for row in rows[header_idx + 1:]:
+        if not any(row):
+            continue
+        raw_amount = row[c_amount] if c_amount is not None else None
+        amt = _parse_decimal(raw_amount)
+        if amt is None:
+            continue
+
+        fee = MaintenanceServiceFee(
+            project=str(row[c_project] or "").strip() if c_project is not None else "",
+            block=str(row[c_block] or "").strip() if c_block is not None else None,
+            unit=str(row[c_unit] or "").strip() if c_unit is not None else "",
+            owner_name=str(row[c_owner] or "").strip() if c_owner is not None else "",
+            owner_contact=str(row[c_contact] or "").strip() if c_contact is not None else None,
+            fee_type=str(row[c_fee_type] or "").strip() if c_fee_type is not None else None,
+            amount=amt,
+            currency=str(row[c_currency] or "GHS").strip() if c_currency is not None else "GHS",
+            billing_period=str(row[c_period] or "").strip() if c_period is not None else None,
+            due_date=_parse_date(row[c_due]) if c_due is not None else None,
+            status=str(row[c_status] or "pending").strip().lower() if c_status is not None else "pending",
+            payment_date=_parse_date(row[c_pay_date]) if c_pay_date is not None else None,
+            receipt_number=str(row[c_receipt] or "").strip() if c_receipt is not None else None,
+            notes=str(row[c_notes] or "").strip() if c_notes is not None else None,
+            created_by=current_user,
+        )
+        db.add(fee)
+        count += 1
+
+    await db.commit()
+    return {"rows_imported": count, "sheets_processed": [ws.title]}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
