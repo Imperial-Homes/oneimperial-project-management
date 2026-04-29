@@ -1,6 +1,7 @@
 """Maintenance API — payments, budgets, service fees, rental schedule import."""
 
 import io
+import re
 import uuid
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
@@ -685,7 +686,24 @@ async def import_service_fees(
 # RENTAL SCHEDULE IMPORT (Excel)
 # ══════════════════════════════════════════════════════════════════════════════
 
-SUPPORTED_SHEETS = {"Palazzo 2026", "Imperial Court 2026", "Philippa 2026"}
+# Keyword-based property detection — sheet names don't need to match exactly.
+# Each entry: (canonical_property_name, list_of_lowercase_keywords)
+_PROPERTY_KEYWORDS = [
+    ("Imperial Court", ["imperial court"]),
+    ("Palazzo", ["palazzo"]),
+    ("Philippa", ["philippa"]),
+]
+
+
+def _detect_property(sheet_name: str) -> Optional[tuple[str, str]]:
+    """Return (property_name, year) if sheet_name contains a known property keyword."""
+    lower = sheet_name.lower()
+    for prop_name, keywords in _PROPERTY_KEYWORDS:
+        if any(k in lower for k in keywords):
+            year_match = re.search(r"\b(20\d{2})\b", sheet_name)
+            year = year_match.group(1) if year_match else str(datetime.now().year)
+            return (prop_name, year)
+    return None
 
 
 def _parse_date(val) -> Optional[date]:
@@ -743,21 +761,19 @@ async def import_rental_schedule(
     skipped = []
 
     for sheet_name in wb.sheetnames:
-        # Accept exact matches or prefix matches (e.g. "Palazzo 2026 " with trailing space)
-        matched = next(
-            (s for s in SUPPORTED_SHEETS if sheet_name.strip().lower() == s.lower()),
-            None,
-        )
-        if not matched:
+        detected = _detect_property(sheet_name)
+        if not detected:
             skipped.append(sheet_name)
             continue
+
+        property_name, sheet_year = detected
 
         ws = wb[sheet_name]
         rows = list(ws.iter_rows(values_only=True))
         if not rows:
             continue
 
-        # Find the header row — look for a row containing "Tenant" or "TENANT"
+        # Find the header row — look for a row containing "Tenant" and date markers
         header_idx = None
         for i, row in enumerate(rows):
             row_text = " ".join(str(c or "").lower() for c in row)
@@ -791,9 +807,6 @@ async def import_rental_schedule(
         c_ta_status = col(["tenancy", "agreement", "status on"])
         c_due = col(["due"])
         c_status = col(["status"])
-
-        property_name = matched.rsplit(" ", 1)[0]  # "Palazzo", "Imperial Court", "Philippa"
-        sheet_year = matched.rsplit(" ", 1)[-1]    # "2026"
 
         count = 0
         for row in rows[header_idx + 1 :]:
