@@ -845,6 +845,71 @@ async def import_rental_schedule(
     return {"imported": imported, "skipped": skipped}
 
 
+@router.patch("/rental-schedule/{entry_id}")
+async def update_rental_schedule_entry(
+    entry_id: UUID,
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: UUID = Depends(get_current_user),
+):
+    result = await db.execute(select(RentalScheduleEntry).where(RentalScheduleEntry.id == entry_id))
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Rental schedule entry not found")
+
+    allowed = {
+        "commercial_unit", "owner", "tenant", "start_date", "expiry_date",
+        "monthly_rent", "total_amount", "amount_paid", "balance",
+        "tenancy_agreement_status", "status_notes", "currency",
+    }
+    for field, val in data.items():
+        if field not in allowed:
+            continue
+        if field in ("start_date", "expiry_date") and val:
+            parsed = _parse_date(val)
+            setattr(entry, field, parsed)
+        elif field in ("monthly_rent", "total_amount", "amount_paid", "balance") and val is not None:
+            setattr(entry, field, _parse_decimal(val))
+        else:
+            setattr(entry, field, val)
+
+    entry.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(entry)
+
+    return {
+        "id": str(entry.id),
+        "property_name": entry.property_name,
+        "sheet_year": entry.sheet_year,
+        "commercial_unit": entry.commercial_unit,
+        "owner": entry.owner,
+        "tenant": entry.tenant,
+        "start_date": entry.start_date.isoformat() if entry.start_date else None,
+        "expiry_date": entry.expiry_date.isoformat() if entry.expiry_date else None,
+        "monthly_rent": float(entry.monthly_rent) if entry.monthly_rent else None,
+        "total_amount": float(entry.total_amount) if entry.total_amount else None,
+        "amount_paid": float(entry.amount_paid) if entry.amount_paid else None,
+        "balance": float(entry.balance) if entry.balance else None,
+        "currency": entry.currency,
+        "tenancy_agreement_status": entry.tenancy_agreement_status,
+        "status_notes": entry.status_notes,
+    }
+
+
+@router.delete("/rental-schedule/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_rental_schedule_entry(
+    entry_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UUID = Depends(get_current_user),
+):
+    result = await db.execute(select(RentalScheduleEntry).where(RentalScheduleEntry.id == entry_id))
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Rental schedule entry not found")
+    await db.delete(entry)
+    await db.commit()
+
+
 @router.get("/rental-schedule")
 async def list_rental_schedule(
     page: int = Query(1, ge=1),

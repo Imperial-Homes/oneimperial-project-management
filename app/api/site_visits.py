@@ -54,7 +54,7 @@ async def generate_visit_id(db: AsyncSession) -> str:
 @router.get("/stats", response_model=SiteVisitStats)
 async def get_site_visit_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user),
 ):
     """Get site visit statistics."""
     total = await db.scalar(select(func.count(SiteVisit.id)))
@@ -77,7 +77,7 @@ async def list_site_visits(
     search: str | None = Query(None),
     status_filter: str | None = Query(None, alias="status"),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user),
 ):
     """List site visits with pagination and filtering."""
     query = select(SiteVisit)
@@ -112,7 +112,7 @@ async def list_site_visits(
 async def get_site_visit(
     visit_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user),
 ):
     """Get a single site visit by ID."""
     result = await db.execute(select(SiteVisit).where(SiteVisit.id == visit_id))
@@ -128,7 +128,7 @@ async def get_site_visit(
 async def create_site_visit(
     data: SiteVisitCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user),
 ):
     """Create a new site visit entry."""
     visit_id = await generate_visit_id(db)
@@ -153,8 +153,8 @@ async def create_site_visit(
         photos_url=data.photos_url,
         report_url=data.report_url,
         status=data.status or "completed",
-        logged_by=data.logged_by or current_user.get("name", ""),
-        logged_by_id=data.logged_by_id or (UUID(current_user["sub"]) if current_user.get("sub") else None),
+        logged_by=data.logged_by,
+        logged_by_id=data.logged_by_id or current_user,
     )
 
     db.add(visit)
@@ -171,7 +171,7 @@ async def update_site_visit(
     visit_id: UUID,
     data: SiteVisitUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user),
 ):
     """Update a site visit."""
     result = await db.execute(select(SiteVisit).where(SiteVisit.id == visit_id))
@@ -197,7 +197,7 @@ async def update_site_visit(
 async def delete_site_visit(
     visit_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user),
 ):
     """Delete a site visit."""
     result = await db.execute(select(SiteVisit).where(SiteVisit.id == visit_id))
