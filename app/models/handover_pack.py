@@ -53,8 +53,14 @@ class HandoverPack(Base):
     keys_handed_over = Column(Boolean, default=False)
     handover_date = Column(DateTime(timezone=True), nullable=True)
 
+    # Interior & access
+    interior_decor_status = Column(String(100), nullable=True)
+    client_access_link = Column(Text, nullable=True)
+    sinking_fund_payment_status = Column(String(50), nullable=True)
+
     # Notes
     letter_to_client = Column(Text, nullable=True)  # Steps communicated to client
+    letter_to_client_url = Column(Text, nullable=True)  # Uploaded document URL
     notes = Column(Text, nullable=True)
     issues_noted = Column(Text, nullable=True)
 
