@@ -32,7 +32,11 @@ class HandoverPackBase(BaseModel):
     client_signed_date: datetime | None = None
     keys_handed_over: bool | None = False
     handover_date: datetime | None = None
+    interior_decor_status: str | None = None
+    client_access_link: str | None = None
+    sinking_fund_payment_status: str | None = None
     letter_to_client: str | None = None
+    letter_to_client_url: str | None = None
     notes: str | None = None
     issues_noted: str | None = None
     status: str | None = "initiated"
@@ -67,7 +71,11 @@ class HandoverPackUpdate(BaseModel):
     client_signed_date: datetime | None = None
     keys_handed_over: bool | None = None
     handover_date: datetime | None = None
+    interior_decor_status: str | None = None
+    client_access_link: str | None = None
+    sinking_fund_payment_status: str | None = None
     letter_to_client: str | None = None
+    letter_to_client_url: str | None = None
     notes: str | None = None
     issues_noted: str | None = None
     status: str | None = None
