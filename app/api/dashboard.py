@@ -127,9 +127,7 @@ async def get_recent_activity(
     """Get recent activity in project management."""
 
     # Recent projects
-    result = await db.execute(
-        select(Project).where(Project.is_active).order_by(Project.created_at.desc()).limit(limit)
-    )
+    result = await db.execute(select(Project).where(Project.is_active).order_by(Project.created_at.desc()).limit(limit))
     recent_projects = result.scalars().all()
 
     # Recent tasks
