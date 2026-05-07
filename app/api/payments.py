@@ -3,7 +3,6 @@
 import logging
 from datetime import date, datetime
 from math import ceil
-from typing import Optional
 from uuid import UUID
 
 import httpx
@@ -39,7 +38,7 @@ def _post_project_cost_journal(
     amount: float,
     pay_date: str,
     certificate_type: str,
-    auth_token: Optional[str] = None,
+    auth_token: str | None = None,
 ) -> None:
     """Background task: post project payment certificate as a GL journal to finance.
 

@@ -176,7 +176,7 @@ def get_resource_utilization_summary(
     # Count active projects
     active_projects = (
         db.query(func.count(func.distinct(ResourceAssignment.project_id)))
-        .filter(ResourceAssignment.resource_id == resource_id, ResourceAssignment.is_active == True)
+        .filter(ResourceAssignment.resource_id == resource_id, ResourceAssignment.is_active)
         .scalar()
         or 0
     )
@@ -187,7 +187,7 @@ def get_resource_utilization_summary(
         .join(ResourceAssignment, Task.id == ResourceAssignment.task_id)
         .filter(
             ResourceAssignment.resource_id == resource_id,
-            Task.is_active == True,
+            Task.is_active,
             Task.status.in_(["pending", "in_progress"]),
         )
         .scalar()
@@ -221,7 +221,7 @@ def get_all_resources_utilization(
 ):
     """Get utilization summary for all resources."""
     # Get all resources
-    query = db.query(Resource).filter(Resource.is_active == True)
+    query = db.query(Resource).filter(Resource.is_active)
 
     if resource_type:
         query = query.filter(Resource.resource_type == resource_type)
@@ -279,7 +279,7 @@ def get_all_resources_utilization(
         # Count active projects
         active_projects = (
             db.query(func.count(func.distinct(ResourceAssignment.project_id)))
-            .filter(ResourceAssignment.resource_id == resource.id, ResourceAssignment.is_active == True)
+            .filter(ResourceAssignment.resource_id == resource.id, ResourceAssignment.is_active)
             .scalar()
             or 0
         )
@@ -290,7 +290,7 @@ def get_all_resources_utilization(
             .join(ResourceAssignment, Task.id == ResourceAssignment.task_id)
             .filter(
                 ResourceAssignment.resource_id == resource.id,
-                Task.is_active == True,
+                Task.is_active,
                 Task.status.in_(["pending", "in_progress"]),
             )
             .scalar()
@@ -332,7 +332,7 @@ def calculate_resource_utilization(
         if not resources[0]:
             raise HTTPException(status_code=404, detail="Resource not found")
     else:
-        resources = db.query(Resource).filter(Resource.is_active == True).all()
+        resources = db.query(Resource).filter(Resource.is_active).all()
 
     calculated_count = 0
 
@@ -371,7 +371,7 @@ def calculate_resource_utilization(
         # Count active projects
         projects_count = (
             db.query(func.count(func.distinct(ResourceAssignment.project_id)))
-            .filter(ResourceAssignment.resource_id == resource.id, ResourceAssignment.is_active == True)
+            .filter(ResourceAssignment.resource_id == resource.id, ResourceAssignment.is_active)
             .scalar()
             or 0
         )
@@ -424,7 +424,7 @@ def optimize_resource_allocation(
 ):
     """Suggest resource allocation optimization."""
     # Get all active resources
-    resources = db.query(Resource).filter(Resource.is_active == True).all()
+    resources = db.query(Resource).filter(Resource.is_active).all()
 
     # Get current utilization for each resource
     recommendations = []

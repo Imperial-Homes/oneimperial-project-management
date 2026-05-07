@@ -77,7 +77,7 @@ def get_project_timelines(
     query = db.query(ProjectTimeline).filter(ProjectTimeline.project_id == project_id)
 
     if active_only:
-        query = query.filter(ProjectTimeline.is_active == True)
+        query = query.filter(ProjectTimeline.is_active)
 
     timelines = query.options(joinedload(ProjectTimeline.dependencies)).all()
     return timelines
@@ -292,7 +292,7 @@ def get_gantt_chart_data(
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Get all tasks for the project
-    tasks = db.query(Task).filter(Task.project_id == project_id, Task.is_active == True).all()
+    tasks = db.query(Task).filter(Task.project_id == project_id, Task.is_active).all()
 
     # Get milestones
     milestones = (
@@ -316,7 +316,7 @@ def get_gantt_chart_data(
         dependency_map[dep.successor_task_id].append(dep.predecessor_task_id)
 
     # Calculate critical path (simplified - just mark tasks with dependencies as critical)
-    critical_tasks = [dep.is_critical for dep in dependencies if dep.is_critical]
+    [dep.is_critical for dep in dependencies if dep.is_critical]
 
     # Build Gantt task data
     gantt_tasks = []

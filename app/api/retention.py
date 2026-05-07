@@ -3,7 +3,6 @@
 import logging
 from datetime import date, datetime
 from math import ceil
-from typing import Optional
 from uuid import UUID
 
 import httpx
@@ -44,7 +43,7 @@ def _post_retention_gl(
     project_name: str,
     amount: float,
     pay_date: str,
-    auth_token: Optional[str] = None,
+    auth_token: str | None = None,
 ) -> None:
     """Background task: post retention payment as GL journal to finance.
 
@@ -140,6 +139,7 @@ def _post_retention_gl(
 
 # ── List ──────────────────────────────────────────────────────────────────────
 
+
 @router.get("", response_model=RetentionReleaseList)
 async def list_retention_releases(
     page: int = Query(1, ge=1),
@@ -189,6 +189,7 @@ async def list_retention_releases(
 
 # ── Summary ────────────────────────────────────────────────────────────────────
 
+
 @router.get("/summary", response_model=RetentionSummary)
 async def get_retention_summary(
     project_id: UUID | None = Query(None),
@@ -227,9 +228,7 @@ async def get_retention_summary(
     pending_q = select(func.coalesce(func.sum(RetentionRelease.amount_requested), 0))
     if project_id:
         pending_q = pending_q.where(RetentionRelease.project_id == project_id)
-    pending_q = pending_q.where(
-        RetentionRelease.status.in_([RetentionStatus.SUBMITTED, RetentionStatus.APPROVED])
-    )
+    pending_q = pending_q.where(RetentionRelease.status.in_([RetentionStatus.SUBMITTED, RetentionStatus.APPROVED]))
     total_pending = Decimal(str(await db.scalar(pending_q) or 0))
 
     # --- Per-tranche released ---
@@ -269,6 +268,7 @@ async def get_retention_summary(
 
 # ── Create ────────────────────────────────────────────────────────────────────
 
+
 @router.post("", response_model=RetentionReleaseResponse, status_code=status.HTTP_201_CREATED)
 async def create_retention_release(
     release_data: RetentionReleaseCreate,
@@ -290,6 +290,7 @@ async def create_retention_release(
 
 
 # ── Get by ID ─────────────────────────────────────────────────────────────────
+
 
 @router.get("/{release_id}", response_model=RetentionReleaseResponse)
 async def get_retention_release(
@@ -313,6 +314,7 @@ async def get_retention_release(
 
 # ── Update ────────────────────────────────────────────────────────────────────
 
+
 @router.put("/{release_id}", response_model=RetentionReleaseResponse)
 async def update_retention_release(
     release_id: UUID,
@@ -321,9 +323,7 @@ async def update_retention_release(
     current_user: UUID = Depends(get_current_user),
 ):
     """Update a DRAFT retention release."""
-    result = await db.execute(
-        select(RetentionRelease).where(RetentionRelease.id == release_id)
-    )
+    result = await db.execute(select(RetentionRelease).where(RetentionRelease.id == release_id))
     release = result.scalar_one_or_none()
     if not release:
         raise HTTPException(status_code=404, detail="Retention release not found")
@@ -340,6 +340,7 @@ async def update_retention_release(
 
 # ── Delete (draft only) ───────────────────────────────────────────────────────
 
+
 @router.delete("/{release_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_retention_release(
     release_id: UUID,
@@ -347,9 +348,7 @@ async def delete_retention_release(
     current_user: UUID = Depends(get_current_user),
 ):
     """Delete a DRAFT retention release."""
-    result = await db.execute(
-        select(RetentionRelease).where(RetentionRelease.id == release_id)
-    )
+    result = await db.execute(select(RetentionRelease).where(RetentionRelease.id == release_id))
     release = result.scalar_one_or_none()
     if not release:
         raise HTTPException(status_code=404, detail="Retention release not found")
@@ -361,6 +360,7 @@ async def delete_retention_release(
 
 # ── Submit ────────────────────────────────────────────────────────────────────
 
+
 @router.post("/{release_id}/submit", response_model=RetentionReleaseResponse)
 async def submit_retention_release(
     release_id: UUID,
@@ -369,9 +369,7 @@ async def submit_retention_release(
     current_user: UUID = Depends(get_current_user),
 ):
     """Submit a retention release for approval."""
-    result = await db.execute(
-        select(RetentionRelease).where(RetentionRelease.id == release_id)
-    )
+    result = await db.execute(select(RetentionRelease).where(RetentionRelease.id == release_id))
     release = result.scalar_one_or_none()
     if not release:
         raise HTTPException(status_code=404, detail="Retention release not found")
@@ -389,6 +387,7 @@ async def submit_retention_release(
 
 # ── Approve ───────────────────────────────────────────────────────────────────
 
+
 @router.post("/{release_id}/approve", response_model=RetentionReleaseResponse)
 async def approve_retention_release(
     release_id: UUID,
@@ -397,9 +396,7 @@ async def approve_retention_release(
     current_user: UUID = Depends(get_current_user),
 ):
     """Approve a submitted retention release."""
-    result = await db.execute(
-        select(RetentionRelease).where(RetentionRelease.id == release_id)
-    )
+    result = await db.execute(select(RetentionRelease).where(RetentionRelease.id == release_id))
     release = result.scalar_one_or_none()
     if not release:
         raise HTTPException(status_code=404, detail="Retention release not found")
@@ -420,6 +417,7 @@ async def approve_retention_release(
 
 # ── Reject ────────────────────────────────────────────────────────────────────
 
+
 @router.post("/{release_id}/reject", response_model=RetentionReleaseResponse)
 async def reject_retention_release(
     release_id: UUID,
@@ -428,9 +426,7 @@ async def reject_retention_release(
     current_user: UUID = Depends(get_current_user),
 ):
     """Reject a submitted retention release."""
-    result = await db.execute(
-        select(RetentionRelease).where(RetentionRelease.id == release_id)
-    )
+    result = await db.execute(select(RetentionRelease).where(RetentionRelease.id == release_id))
     release = result.scalar_one_or_none()
     if not release:
         raise HTTPException(status_code=404, detail="Retention release not found")
@@ -447,6 +443,7 @@ async def reject_retention_release(
 
 
 # ── Record Payment ────────────────────────────────────────────────────────────
+
 
 @router.post("/{release_id}/payment", response_model=RetentionReleaseResponse)
 async def record_retention_payment(

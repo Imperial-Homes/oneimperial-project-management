@@ -2,9 +2,9 @@
 
 from uuid import UUID
 
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-import jwt
 from jwt.exceptions import InvalidTokenError as JWTError
 
 from app.config import settings

@@ -148,7 +148,7 @@ def get_project_progress_summary(
     # Get task counts
     tasks = (
         db.query(Task.status, func.count(Task.id).label("count"))
-        .filter(Task.project_id == project_id, Task.is_active == True)
+        .filter(Task.project_id == project_id, Task.is_active)
         .group_by(Task.status)
         .all()
     )

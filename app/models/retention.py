@@ -11,7 +11,7 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 
 
-class RetentionTranche(str, enum.Enum):
+class RetentionTranche(enum.StrEnum):
     """Retention release tranches — matches Ghana construction SOPs."""
 
     PRACTICAL_COMPLETION = "practical_completion"  # 2.5% on handover
@@ -19,7 +19,7 @@ class RetentionTranche(str, enum.Enum):
     FULL = "full"  # full retention in one release (non-standard)
 
 
-class RetentionStatus(str, enum.Enum):
+class RetentionStatus(enum.StrEnum):
     """Retention release workflow statuses."""
 
     DRAFT = "draft"

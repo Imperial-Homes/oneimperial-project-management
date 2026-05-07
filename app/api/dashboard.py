@@ -22,18 +22,18 @@ async def get_dashboard_stats(
     """Get dashboard statistics for project management."""
 
     # Project stats
-    total_projects = await db.scalar(select(func.count()).select_from(Project).where(Project.is_active == True))
+    total_projects = await db.scalar(select(func.count()).select_from(Project).where(Project.is_active))
 
     # Active projects (status = active OR planning OR in_progress)
     active_projects = await db.scalar(
         select(func.count())
         .select_from(Project)
-        .where(Project.status.in_(["active", "planning", "in_progress"]), Project.is_active == True)
+        .where(Project.status.in_(["active", "planning", "in_progress"]), Project.is_active)
     )
 
     projects_by_status = {}
     result = await db.execute(
-        select(Project.status, func.count(Project.id)).where(Project.is_active == True).group_by(Project.status)
+        select(Project.status, func.count(Project.id)).where(Project.is_active).group_by(Project.status)
     )
     for status, count in result:
         projects_by_status[status] = count
@@ -45,7 +45,7 @@ async def get_dashboard_stats(
         .where(
             Project.target_end_date < datetime.now().date(),
             Project.status.notin_(["completed", "cancelled"]),
-            Project.is_active == True,
+            Project.is_active,
         )
     )
 
@@ -53,14 +53,14 @@ async def get_dashboard_stats(
     result = await db.execute(
         select(Project.id, Project.budget, func.coalesce(func.sum(ProjectCost.amount), 0).label("total_spent"))
         .outerjoin(ProjectCost, Project.id == ProjectCost.project_id)
-        .where(Project.is_active == True, Project.budget.isnot(None))
+        .where(Project.is_active, Project.budget.isnot(None))
         .group_by(Project.id, Project.budget)
     )
     budget_data = result.all()
     on_budget = sum(1 for _, budget, spent in budget_data if spent <= budget)
 
     # Calculate total value from all active projects
-    total_value = await db.scalar(select(func.coalesce(func.sum(Project.budget), 0)).where(Project.is_active == True))
+    total_value = await db.scalar(select(func.coalesce(func.sum(Project.budget), 0)).where(Project.is_active))
 
     # Task stats
     total_tasks = await db.scalar(select(func.count()).select_from(Task))
@@ -71,18 +71,18 @@ async def get_dashboard_stats(
         tasks_by_status[status] = count
 
     # Resource stats
-    total_resources = await db.scalar(select(func.count()).select_from(Resource).where(Resource.is_active == True))
+    total_resources = await db.scalar(select(func.count()).select_from(Resource).where(Resource.is_active))
 
     available_resources = await db.scalar(
         select(func.count())
         .select_from(Resource)
-        .where(Resource.availability_status == "available", Resource.is_active == True)
+        .where(Resource.availability_status == "available", Resource.is_active)
     )
 
     # Budget stats - calculate total_spent from ProjectCost
     result = await db.execute(
         select(func.coalesce(func.sum(ProjectBudget.total_budget), 0).label("total_budget")).where(
-            ProjectBudget.is_approved == True
+            ProjectBudget.is_approved
         )
     )
     total_budget = result.scalar() or 0
@@ -128,7 +128,7 @@ async def get_recent_activity(
 
     # Recent projects
     result = await db.execute(
-        select(Project).where(Project.is_active == True).order_by(Project.created_at.desc()).limit(limit)
+        select(Project).where(Project.is_active).order_by(Project.created_at.desc()).limit(limit)
     )
     recent_projects = result.scalars().all()
 
@@ -196,7 +196,7 @@ async def get_alerts(
             func.coalesce(func.sum(ProjectCost.amount), 0).label("total_spent"),
         )
         .outerjoin(ProjectCost, ProjectBudget.project_id == ProjectCost.project_id)
-        .where(ProjectBudget.is_approved == True)
+        .where(ProjectBudget.is_approved)
         .group_by(ProjectBudget.project_id, ProjectBudget.total_budget)
         .having(func.coalesce(func.sum(ProjectCost.amount), 0) > ProjectBudget.total_budget)
     )
@@ -221,7 +221,7 @@ async def get_alerts(
             func.coalesce(func.sum(ProjectCost.amount), 0).label("total_spent"),
         )
         .outerjoin(ProjectCost, ProjectBudget.project_id == ProjectCost.project_id)
-        .where(ProjectBudget.is_approved == True)
+        .where(ProjectBudget.is_approved)
         .group_by(ProjectBudget.project_id, ProjectBudget.total_budget)
         .having(
             func.coalesce(func.sum(ProjectCost.amount), 0) > (ProjectBudget.total_budget * 0.9),
