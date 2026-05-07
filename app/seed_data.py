@@ -127,7 +127,7 @@ async def clear_old_data(session):
     ]
     for table in tables:
         try:
-            await session.execute(text(f"DELETE FROM {table}"))
+            await session.execute(text(f"DELETE FROM {table}"))  # nosec B608
         except Exception as e:
             print(f"  Could not clear {table}: {e}")
     await session.flush()

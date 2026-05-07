@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Project Management Service"
     VERSION: str = "1.0.0"
     DEBUG: bool = False
-    HOST: str = "0.0.0.0"
+    HOST: str = "0.0.0.0"  # nosec B104
     PORT: int = 8005
     ENVIRONMENT: str = "development"
 
