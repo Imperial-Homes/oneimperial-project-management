@@ -1,0 +1,10 @@
+[tool.pyrefly]
+source_directories = ["."]
+python_interpreter = "venv/bin/python"
+
+[tool.pyright]
+pythonVersion = "3.11"
+include = ["app"]
+extraPaths = ["."]
+venvPath = "."
+venv = "venv"
