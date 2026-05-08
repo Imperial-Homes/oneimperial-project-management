@@ -1,6 +1,7 @@
 """Pytest configuration and fixtures."""
 
 import base64
+import os
 from collections.abc import AsyncGenerator
 from uuid import uuid4
 
@@ -8,42 +9,41 @@ import jwt
 import pytest
 from app.database import Base, get_db
 from app.main import app
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-# Test database URL
-TEST_DATABASE_URL = "postgresql+asyncpg://test:test@localhost:5432/test_project_mgmt_db"
-
-# Create test engine
-test_engine = create_async_engine(TEST_DATABASE_URL, echo=True)
-
-# Create test session factory
-TestSessionLocal = sessionmaker(
-    test_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
+# Test database URL — reads from env so tests work in CI and local Docker
+TEST_DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test_project_mgmt_db")
 
 
 @pytest.fixture(scope="function")
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
     """Create test database session."""
-    async with test_engine.begin() as conn:
+    engine = create_async_engine(TEST_DATABASE_URL, echo=True)
+    session_factory = sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autocommit=False,
+        autoflush=False,
+    )
+
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    async with TestSessionLocal() as session:
+    async with session_factory() as session:
         yield session
         await session.rollback()
 
-    async with test_engine.begin() as conn:
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+    await engine.dispose()
 
 
 @pytest.fixture(scope="function")
-def client(db_session: AsyncSession) -> TestClient:
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create test client."""
 
     async def override_get_db():
@@ -51,8 +51,8 @@ def client(db_session: AsyncSession) -> TestClient:
 
     app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(app) as test_client:
-        yield test_client
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        yield ac
 
     app.dependency_overrides.clear()
 
