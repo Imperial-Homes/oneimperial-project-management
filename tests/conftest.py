@@ -1,16 +1,16 @@
 """Pytest configuration and fixtures."""
 
-import asyncio
-from typing import AsyncGenerator, Generator
+import base64
+from collections.abc import AsyncGenerator
 from uuid import uuid4
 
+import jwt
 import pytest
+from app.database import Base, get_db
+from app.main import app
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-
-from app.database import Base, get_db
-from app.main import app
 
 # Test database URL
 TEST_DATABASE_URL = "postgresql+asyncpg://test:test@localhost:5432/test_project_mgmt_db"
@@ -26,14 +26,6 @@ TestSessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
 )
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(scope="function")
@@ -58,19 +50,18 @@ def client(db_session: AsyncSession) -> TestClient:
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
-    
+
     with TestClient(app) as test_client:
         yield test_client
-    
+
     app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="session")
 def test_rsa_keypair():
     """Generate an ephemeral RSA key pair used only during the test session."""
-    from cryptography.hazmat.primitives.asymmetric import rsa
     from cryptography.hazmat.primitives import serialization
-    import base64
+    from cryptography.hazmat.primitives.asymmetric import rsa
 
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     private_pem = private_key.private_bytes(
@@ -91,15 +82,13 @@ def test_rsa_keypair():
 @pytest.fixture
 def auth_token(test_rsa_keypair, monkeypatch) -> str:
     """Generate a test JWT token signed with an ephemeral RSA key (RS256)."""
-    from jose import jwt
     from app.config import settings
 
     monkeypatch.setattr(settings, "JWT_PUBLIC_KEY_B64", test_rsa_keypair["public_b64"])
 
     user_id = str(uuid4())
     token_data = {"sub": user_id}
-    token = jwt.encode(token_data, test_rsa_keypair["private_pem"], algorithm="RS256")
-    return token
+    return jwt.encode(token_data, test_rsa_keypair["private_pem"], algorithm="RS256")
 
 
 @pytest.fixture
