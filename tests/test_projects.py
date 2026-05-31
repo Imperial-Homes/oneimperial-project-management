@@ -1,14 +1,12 @@
 """Tests for project endpoints."""
 
 import pytest
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 
 @pytest.mark.unit
-
-
 @pytest.mark.asyncio
-async def test_create_project(client: TestClient, auth_headers: dict):
+async def test_create_project(client: AsyncClient, auth_headers: dict):
     """Test creating a project."""
     project_data = {
         "project_code": "PRJ-2024-001",
@@ -20,21 +18,13 @@ async def test_create_project(client: TestClient, auth_headers: dict):
         "currency": "GHS",
         "location": "Accra, Ghana",
         "phases": [
-            {
-                "name": "Foundation",
-                "description": "Foundation and basement work",
-                "sequence_number": 1
-            },
-            {
-                "name": "Structure",
-                "description": "Main structure construction",
-                "sequence_number": 2
-            }
-        ]
+            {"name": "Foundation", "description": "Foundation and basement work", "sequence_number": 1},
+            {"name": "Structure", "description": "Main structure construction", "sequence_number": 2},
+        ],
     }
-    
-    response = client.post("/projects", json=project_data, headers=auth_headers)
-    
+
+    response = await client.post("/projects", json=project_data, headers=auth_headers)
+
     assert response.status_code == 201
     data = response.json()
     assert data["project_code"] == "PRJ-2024-001"
@@ -44,25 +34,23 @@ async def test_create_project(client: TestClient, auth_headers: dict):
 
 
 @pytest.mark.unit
-
-
 @pytest.mark.asyncio
-async def test_list_projects(client: TestClient, auth_headers: dict):
+async def test_list_projects(client: AsyncClient, auth_headers: dict):
     """Test listing projects."""
     # Create test projects
     for i in range(3):
         project_data = {
-            "project_code": f"PRJ-TEST-00{i+1}",
-            "name": f"Project {i+1}",
+            "project_code": f"PRJ-TEST-00{i + 1}",
+            "name": f"Project {i + 1}",
             "project_type": "construction",
             "currency": "GHS",
-            "phases": []
+            "phases": [],
         }
-        client.post("/projects", json=project_data, headers=auth_headers)
-    
+        await client.post("/projects", json=project_data, headers=auth_headers)
+
     # List projects
-    response = client.get("/projects", headers=auth_headers)
-    
+    response = await client.get("/projects", headers=auth_headers)
+
     assert response.status_code == 200
     data = response.json()
     assert "items" in data
@@ -71,10 +59,8 @@ async def test_list_projects(client: TestClient, auth_headers: dict):
 
 
 @pytest.mark.unit
-
-
 @pytest.mark.asyncio
-async def test_get_project(client: TestClient, auth_headers: dict):
+async def test_get_project(client: AsyncClient, auth_headers: dict):
     """Test getting a specific project."""
     # Create project
     project_data = {
@@ -82,14 +68,14 @@ async def test_get_project(client: TestClient, auth_headers: dict):
         "name": "Test Project",
         "project_type": "construction",
         "currency": "GHS",
-        "phases": []
+        "phases": [],
     }
-    create_response = client.post("/projects", json=project_data, headers=auth_headers)
+    create_response = await client.post("/projects", json=project_data, headers=auth_headers)
     project_id = create_response.json()["id"]
-    
+
     # Get project
-    response = client.get(f"/projects/{project_id}", headers=auth_headers)
-    
+    response = await client.get(f"/projects/{project_id}", headers=auth_headers)
+
     assert response.status_code == 200
     data = response.json()
     assert data["project_code"] == "PRJ-GET-TEST"
@@ -97,10 +83,8 @@ async def test_get_project(client: TestClient, auth_headers: dict):
 
 
 @pytest.mark.unit
-
-
 @pytest.mark.asyncio
-async def test_update_project_status(client: TestClient, auth_headers: dict):
+async def test_update_project_status(client: AsyncClient, auth_headers: dict):
     """Test updating project status."""
     # Create project
     project_data = {
@@ -108,18 +92,14 @@ async def test_update_project_status(client: TestClient, auth_headers: dict):
         "name": "Status Test Project",
         "project_type": "construction",
         "currency": "GHS",
-        "phases": []
+        "phases": [],
     }
-    create_response = client.post("/projects", json=project_data, headers=auth_headers)
+    create_response = await client.post("/projects", json=project_data, headers=auth_headers)
     project_id = create_response.json()["id"]
-    
+
     # Update status
-    response = client.put(
-        f"/projects/{project_id}/status",
-        params={"new_status": "active"},
-        headers=auth_headers
-    )
-    
+    response = await client.put(f"/projects/{project_id}/status", params={"new_status": "active"}, headers=auth_headers)
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "active"

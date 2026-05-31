@@ -119,19 +119,19 @@ class EmailService:
                 </div>
                 <div class="content">
                     <h2>Hello {assignee_name},</h2>
-                    
+
                     <p>You have been assigned a new task in the <strong>{project_name}</strong> project.</p>
-                    
+
                     <div class="task-details">
                         <h3>{task_title}</h3>
                         <p><strong>Project:</strong> {project_name}</p>
                         <p><strong>Due Date:</strong> {due_date}</p>
                         <p><strong>Priority:</strong> <span class="priority">{priority.upper()}</span></p>
                     </div>
-                    
+
                     <p>Click the button below to view the task details:</p>
                     <a href="{task_url}" class="button">View Task</a>
-                    
+
                     <p>Best regards,<br><strong>Project Management Team</strong></p>
                 </div>
                 <div class="footer">
@@ -144,19 +144,19 @@ class EmailService:
 
         text_content = f"""
         New Task Assigned
-        
+
         Hello {assignee_name},
-        
+
         You have been assigned a new task in the {project_name} project.
-        
+
         Task Details:
         - Title: {task_title}
         - Project: {project_name}
         - Due Date: {due_date}
         - Priority: {priority.upper()}
-        
+
         View task: {task_url}
-        
+
         Best regards,
         Project Management Team
         """
@@ -198,21 +198,21 @@ class EmailService:
                 </div>
                 <div class="content">
                     <h2>Hello {assignee_name},</h2>
-                    
+
                     <div class="reminder">
                         <strong>Reminder:</strong> Your task is due in <strong>{hours_remaining} hours</strong>!
                     </div>
-                    
+
                     <div class="task-details">
                         <h3>Task Details:</h3>
                         <p><strong>Task:</strong> {task_title}</p>
                         <p><strong>Project:</strong> {project_name}</p>
                         <p><strong>Due Date:</strong> {due_date}</p>
                     </div>
-                    
+
                     <p>Please ensure you complete this task before the deadline.</p>
                     <a href="{task_url}" class="button">View Task</a>
-                    
+
                     <p>Best regards,<br><strong>Project Management Team</strong></p>
                 </div>
                 <div class="footer">
@@ -225,20 +225,20 @@ class EmailService:
 
         text_content = f"""
         Task Due Soon
-        
+
         Hello {assignee_name},
-        
+
         Reminder: Your task is due in {hours_remaining} hours!
-        
+
         Task Details:
         - Task: {task_title}
         - Project: {project_name}
         - Due Date: {due_date}
-        
+
         Please ensure you complete this task before the deadline.
-        
+
         View task: {task_url}
-        
+
         Best regards,
         Project Management Team
         """
@@ -279,17 +279,17 @@ class EmailService:
                 </div>
                 <div class="content">
                     <h2>Hello {assignee_name},</h2>
-                    
+
                     <div class="urgent">
                         <strong>⚠️ URGENT:</strong> Your task is <strong>{days_overdue} {"day" if days_overdue == 1 else "days"} overdue</strong>!
                         <p><strong>Task:</strong> {task_title}</p>
                         <p><strong>Project:</strong> {project_name}</p>
                         <p><strong>Was Due:</strong> {due_date}</p>
                     </div>
-                    
+
                     <p>This task requires immediate attention. Please complete it as soon as possible or update the status.</p>
                     <a href="{task_url}" class="button">Update Task</a>
-                    
+
                     <p>Best regards,<br><strong>Project Management Team</strong></p>
                 </div>
                 <div class="footer">
@@ -302,19 +302,19 @@ class EmailService:
 
         text_content = f"""
         Task Overdue - URGENT
-        
+
         Hello {assignee_name},
-        
+
         URGENT: Your task is {days_overdue} {"day" if days_overdue == 1 else "days"} overdue!
-        
+
         Task: {task_title}
         Project: {project_name}
         Was Due: {due_date}
-        
+
         This task requires immediate attention.
-        
+
         Update task: {task_url}
-        
+
         Best regards,
         Project Management Team
         """
@@ -366,7 +366,7 @@ class EmailService:
                 </div>
                 <div class="content">
                     <h2>Hello {team_member_name},</h2>
-                    
+
                     <div class="celebration">
                         <div class="emoji">🎊 🎈 ✨ 🏆</div>
                         <h3 style="color: #667eea; font-size: 24px;">{milestone_name}</h3>
@@ -377,18 +377,18 @@ class EmailService:
                             <strong>Completed:</strong> {completion_date}
                         </p>
                     </div>
-                    
+
                     <p style="font-size: 16px;">
-                        Congratulations on reaching this important milestone! Your hard work and dedication 
+                        Congratulations on reaching this important milestone! Your hard work and dedication
                         have brought the project one step closer to completion.
                     </p>
-                    
+
                     <p style="font-size: 16px;">
                         Keep up the excellent work!
                     </p>
-                    
+
                     <a href="{project_url}" class="button">View Project</a>
-                    
+
                     <p style="text-align: center;">
                         Best regards,<br><strong>Project Management Team</strong>
                     </p>
@@ -403,21 +403,21 @@ class EmailService:
 
         text_content = f"""
         Milestone Achieved!
-        
+
         Hello {team_member_name},
-        
+
         Congratulations! The project has reached an important milestone.
-        
+
         Milestone: {milestone_name}
         Project: {project_name}
         Completed: {completion_date}
-        
+
         Your hard work and dedication have brought the project one step closer to completion.
-        
+
         Keep up the excellent work!
-        
+
         View project: {project_url}
-        
+
         Best regards,
         Project Management Team
         """

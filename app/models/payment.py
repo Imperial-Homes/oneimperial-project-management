@@ -11,7 +11,7 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 
 
-class CertificateStatus(str, enum.Enum):
+class CertificateStatus(enum.StrEnum):
     """Payment certificate statuses"""
 
     DRAFT = "draft"
@@ -22,7 +22,7 @@ class CertificateStatus(str, enum.Enum):
     PARTIALLY_PAID = "partially_paid"
 
 
-class CertificateType(str, enum.Enum):
+class CertificateType(enum.StrEnum):
     """Payment certificate types"""
 
     INTERIM = "interim"

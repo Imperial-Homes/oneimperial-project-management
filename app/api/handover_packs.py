@@ -137,6 +137,7 @@ async def download_handover_certificate_pdf(
 ):
     """Generate and download a branded Handover Certificate PDF (SOP 5.0)."""
     from fastapi.responses import Response
+
     from app.utils.pdf_handover import generate_handover_certificate_pdf
 
     result = await db.execute(select(HandoverPack).where(HandoverPack.id == item_id))

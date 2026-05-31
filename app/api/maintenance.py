@@ -2,10 +2,8 @@
 
 import io
 import re
-import uuid
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -26,8 +24,9 @@ router = APIRouter()
 
 # ── Reference prefix ────────────────────────────────────────────────────────
 
+
 async def _next_ref(db: AsyncSession, model, col_name: str, prefix: str) -> str:
-    col = getattr(model, col_name)
+    getattr(model, col_name)
     result = await db.execute(select(func.count()).select_from(model))
     count = (result.scalar() or 0) + 1
     return f"{prefix}-{count:04d}"
@@ -37,23 +36,24 @@ async def _next_ref(db: AsyncSession, model, col_name: str, prefix: str) -> str:
 # PAYMENTS
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class PaymentCreate(BaseModel):
-    payment_reference: Optional[str] = None
+    payment_reference: str | None = None
     payment_type: str
     project: str
-    block: Optional[str] = None
+    block: str | None = None
     unit: str
     payer_name: str
-    payer_contact: Optional[str] = None
+    payer_contact: str | None = None
     amount: float
     currency: str = "GHS"
     payment_date: str
-    payment_method: Optional[str] = None
-    bank_name: Optional[str] = None
-    cheque_number: Optional[str] = None
-    received_by: Optional[str] = None
-    description: Optional[str] = None
-    notes: Optional[str] = None
+    payment_method: str | None = None
+    bank_name: str | None = None
+    cheque_number: str | None = None
+    received_by: str | None = None
+    description: str | None = None
+    notes: str | None = None
     status: str = "completed"
 
 
@@ -61,8 +61,8 @@ class PaymentCreate(BaseModel):
 async def list_payments(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    payment_type: Optional[str] = None,
-    search: Optional[str] = None,
+    payment_type: str | None = None,
+    search: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
@@ -141,7 +141,7 @@ async def create_payment(
         description=data.description,
         notes=data.notes,
         status=data.status,
-        created_by=current_user,
+        created_by=current_user["id"],
     )
     db.add(payment)
     await db.commit()
@@ -150,22 +150,22 @@ async def create_payment(
 
 
 class PaymentUpdate(BaseModel):
-    payment_type: Optional[str] = None
-    project: Optional[str] = None
-    block: Optional[str] = None
-    unit: Optional[str] = None
-    payer_name: Optional[str] = None
-    payer_contact: Optional[str] = None
-    amount: Optional[float] = None
-    currency: Optional[str] = None
-    payment_date: Optional[str] = None
-    payment_method: Optional[str] = None
-    bank_name: Optional[str] = None
-    cheque_number: Optional[str] = None
-    received_by: Optional[str] = None
-    description: Optional[str] = None
-    notes: Optional[str] = None
-    status: Optional[str] = None
+    payment_type: str | None = None
+    project: str | None = None
+    block: str | None = None
+    unit: str | None = None
+    payer_name: str | None = None
+    payer_contact: str | None = None
+    amount: float | None = None
+    currency: str | None = None
+    payment_date: str | None = None
+    payment_method: str | None = None
+    bank_name: str | None = None
+    cheque_number: str | None = None
+    received_by: str | None = None
+    description: str | None = None
+    notes: str | None = None
+    status: str | None = None
 
 
 @router.patch("/payments/{payment_id}")
@@ -234,30 +234,31 @@ async def delete_payment(
 # BUDGETS
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class BudgetCreate(BaseModel):
     title: str
-    project_id: Optional[str] = None
-    project_name: Optional[str] = None
-    category: Optional[str] = None
+    project_id: str | None = None
+    project_name: str | None = None
+    category: str | None = None
     total_amount: float
     currency: str = "GHS"
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    notes: Optional[str] = None
-    created_by_name: Optional[str] = None
+    start_date: str | None = None
+    end_date: str | None = None
+    notes: str | None = None
+    created_by_name: str | None = None
 
 
 class BudgetUpdate(BaseModel):
-    title: Optional[str] = None
-    project_name: Optional[str] = None
-    category: Optional[str] = None
-    total_amount: Optional[float] = None
-    paid_amount: Optional[float] = None
-    currency: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    status: Optional[str] = None
-    notes: Optional[str] = None
+    title: str | None = None
+    project_name: str | None = None
+    category: str | None = None
+    total_amount: float | None = None
+    paid_amount: float | None = None
+    currency: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    status: str | None = None
+    notes: str | None = None
 
 
 def _budget_row(b: MaintenanceBudget) -> dict:
@@ -287,8 +288,8 @@ def _budget_row(b: MaintenanceBudget) -> dict:
 async def list_budgets(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=200),
-    status_filter: Optional[str] = Query(None, alias="status"),
-    search: Optional[str] = None,
+    status_filter: str | None = Query(None, alias="status"),
+    search: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
@@ -359,7 +360,7 @@ async def create_budget(
         end_date=date.fromisoformat(data.end_date) if data.end_date else None,
         status="pending_approval",
         notes=data.notes,
-        created_by=current_user,
+        created_by=current_user["id"],
         created_by_name=data.created_by_name,
     )
     db.add(budget)
@@ -425,21 +426,22 @@ async def delete_budget(
 # SERVICE FEES
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class ServiceFeeCreate(BaseModel):
     project: str
-    block: Optional[str] = None
+    block: str | None = None
     unit: str
     owner_name: str
-    owner_contact: Optional[str] = None
-    fee_type: Optional[str] = None
+    owner_contact: str | None = None
+    fee_type: str | None = None
     amount: float
     currency: str = "GHS"
-    billing_period: Optional[str] = None
-    due_date: Optional[str] = None
+    billing_period: str | None = None
+    due_date: str | None = None
     status: str = "pending"
-    payment_date: Optional[str] = None
-    receipt_number: Optional[str] = None
-    notes: Optional[str] = None
+    payment_date: str | None = None
+    receipt_number: str | None = None
+    notes: str | None = None
 
 
 def _fee_row(f: MaintenanceServiceFee) -> dict:
@@ -467,8 +469,8 @@ def _fee_row(f: MaintenanceServiceFee) -> dict:
 async def list_service_fees(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    status_filter: Optional[str] = Query(None, alias="status"),
-    search: Optional[str] = None,
+    status_filter: str | None = Query(None, alias="status"),
+    search: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
@@ -490,7 +492,12 @@ async def list_service_fees(
     result = await db.execute(q)
     items = result.scalars().all()
 
-    return {"items": [_fee_row(f) for f in items], "total": total, "page": page, "pages": max(1, -(-total // page_size))}
+    return {
+        "items": [_fee_row(f) for f in items],
+        "total": total,
+        "page": page,
+        "pages": max(1, -(-total // page_size)),
+    }
 
 
 @router.post("/service-fees", status_code=status.HTTP_201_CREATED)
@@ -514,7 +521,7 @@ async def create_service_fee(
         payment_date=date.fromisoformat(data.payment_date) if data.payment_date else None,
         receipt_number=data.receipt_number,
         notes=data.notes,
-        created_by=current_user,
+        created_by=current_user["id"],
     )
     db.add(fee)
     await db.commit()
@@ -523,20 +530,20 @@ async def create_service_fee(
 
 
 class ServiceFeeUpdate(BaseModel):
-    project: Optional[str] = None
-    block: Optional[str] = None
-    unit: Optional[str] = None
-    owner_name: Optional[str] = None
-    owner_contact: Optional[str] = None
-    fee_type: Optional[str] = None
-    amount: Optional[float] = None
-    currency: Optional[str] = None
-    billing_period: Optional[str] = None
-    due_date: Optional[str] = None
-    status: Optional[str] = None
-    payment_date: Optional[str] = None
-    receipt_number: Optional[str] = None
-    notes: Optional[str] = None
+    project: str | None = None
+    block: str | None = None
+    unit: str | None = None
+    owner_name: str | None = None
+    owner_contact: str | None = None
+    fee_type: str | None = None
+    amount: float | None = None
+    currency: str | None = None
+    billing_period: str | None = None
+    due_date: str | None = None
+    status: str | None = None
+    payment_date: str | None = None
+    receipt_number: str | None = None
+    notes: str | None = None
 
 
 @router.patch("/service-fees/{fee_id}")
@@ -585,6 +592,7 @@ async def delete_service_fee(
 # SERVICE FEE IMPORT (Excel)
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @router.post("/import/service-fees")
 async def import_service_fees(
     file: UploadFile = File(...),
@@ -628,7 +636,7 @@ async def import_service_fees(
 
     headers = [str(c or "").strip().lower() for c in rows[header_idx]]
 
-    def col(frags: list[str]) -> Optional[int]:
+    def col(frags: list[str]) -> int | None:
         for i, h in enumerate(headers):
             if any(f in h for f in frags):
                 return i
@@ -650,7 +658,7 @@ async def import_service_fees(
     c_notes = col(["notes", "remarks"])
 
     count = 0
-    for row in rows[header_idx + 1:]:
+    for row in rows[header_idx + 1 :]:
         if not any(row):
             continue
         raw_amount = row[c_amount] if c_amount is not None else None
@@ -673,7 +681,7 @@ async def import_service_fees(
             payment_date=_parse_date(row[c_pay_date]) if c_pay_date is not None else None,
             receipt_number=str(row[c_receipt] or "").strip() if c_receipt is not None else None,
             notes=str(row[c_notes] or "").strip() if c_notes is not None else None,
-            created_by=current_user,
+            created_by=current_user["id"],
         )
         db.add(fee)
         count += 1
@@ -695,7 +703,7 @@ _PROPERTY_KEYWORDS = [
 ]
 
 
-def _detect_property(sheet_name: str) -> Optional[tuple[str, str]]:
+def _detect_property(sheet_name: str) -> tuple[str, str] | None:
     """Return (property_name, year) if sheet_name contains a known property keyword."""
     lower = sheet_name.lower()
     for prop_name, keywords in _PROPERTY_KEYWORDS:
@@ -706,7 +714,7 @@ def _detect_property(sheet_name: str) -> Optional[tuple[str, str]]:
     return None
 
 
-def _parse_date(val) -> Optional[date]:
+def _parse_date(val) -> date | None:
     if val is None:
         return None
     if isinstance(val, (datetime,)):
@@ -722,7 +730,7 @@ def _parse_date(val) -> Optional[date]:
     return None
 
 
-def _parse_decimal(val) -> Optional[Decimal]:
+def _parse_decimal(val) -> Decimal | None:
     if val is None:
         return None
     try:
@@ -787,8 +795,8 @@ async def import_rental_schedule(
 
         headers = [str(c or "").strip().lower() for c in rows[header_idx]]
 
-        def col(name_fragments: list[str]) -> Optional[int]:
-            for i, h in enumerate(headers):
+        def col(name_fragments: list[str]) -> int | None:
+            for i, h in enumerate(headers):  # noqa: B023
                 if any(f in h for f in name_fragments):
                     return i
             return None
@@ -834,7 +842,7 @@ async def import_rental_schedule(
                 tenancy_agreement_status=str(row[c_ta_status] or "").strip() if c_ta_status is not None else None,
                 due_date=_parse_date(row[c_due]) if c_due is not None else None,
                 status_notes=str(row[c_status] or "").strip() if c_status is not None else None,
-                imported_by=current_user,
+                imported_by=current_user["id"],
             )
             db.add(entry)
             count += 1
@@ -858,9 +866,18 @@ async def update_rental_schedule_entry(
         raise HTTPException(status_code=404, detail="Rental schedule entry not found")
 
     allowed = {
-        "commercial_unit", "owner", "tenant", "start_date", "expiry_date",
-        "monthly_rent", "total_amount", "amount_paid", "balance",
-        "tenancy_agreement_status", "status_notes", "currency",
+        "commercial_unit",
+        "owner",
+        "tenant",
+        "start_date",
+        "expiry_date",
+        "monthly_rent",
+        "total_amount",
+        "amount_paid",
+        "balance",
+        "tenancy_agreement_status",
+        "status_notes",
+        "currency",
     }
     for field, val in data.items():
         if field not in allowed:
@@ -914,13 +931,15 @@ async def delete_rental_schedule_entry(
 async def list_rental_schedule(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
-    property_name: Optional[str] = None,
-    search: Optional[str] = None,
+    property_name: str | None = None,
+    search: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: UUID = Depends(get_current_user),
 ):
-    q = select(RentalScheduleEntry).where(RentalScheduleEntry.is_active == True).order_by(
-        RentalScheduleEntry.property_name, RentalScheduleEntry.commercial_unit
+    q = (
+        select(RentalScheduleEntry)
+        .where(RentalScheduleEntry.is_active)
+        .order_by(RentalScheduleEntry.property_name, RentalScheduleEntry.commercial_unit)
     )
     if property_name:
         q = q.where(RentalScheduleEntry.property_name.ilike(f"%{property_name}%"))

@@ -3,7 +3,6 @@
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +10,7 @@ _LOGO_PATH = Path(__file__).parent.parent / "assets" / "logo.png"
 
 # Imperial Homes brand colour #B42541
 _BR, _BG, _BB = 180, 37, 65
-_LIGHT_R, _LIGHT_G, _LIGHT_B = 250, 242, 244   # very light red tint
+_LIGHT_R, _LIGHT_G, _LIGHT_B = 250, 242, 244  # very light red tint
 _GREY_R, _GREY_G, _GREY_B = 245, 245, 245
 
 
@@ -19,7 +18,7 @@ def generate_payment_certificate_pdf(
     *,
     # Certificate meta
     certificate_number: str,
-    certificate_type: str,           # "Interim" / "Final" / "Advance" / "Retention" / "Variation"
+    certificate_type: str,  # "Interim" / "Final" / "Advance" / "Retention" / "Variation"
     certificate_date: date,
     status: str,
     currency: str = "GHS",
@@ -33,8 +32,8 @@ def generate_payment_certificate_pdf(
     contractor_name: str = "",
     consultant_name: str = "",
     # Work period
-    period_from: Optional[date] = None,
-    period_to: Optional[date] = None,
+    period_from: date | None = None,
+    period_to: date | None = None,
     # Financial summary
     gross_amount: float = 0.0,
     previous_amount: float = 0.0,
@@ -47,9 +46,9 @@ def generate_payment_certificate_pdf(
     description: str = "",
     notes: str = "",
     # Approval
-    submitted_date: Optional[date] = None,
-    approved_date: Optional[date] = None,
-    payment_date: Optional[date] = None,
+    submitted_date: date | None = None,
+    approved_date: date | None = None,
+    payment_date: date | None = None,
     payment_reference: str = "",
     amount_paid: float = 0.0,
 ) -> bytes:
@@ -64,7 +63,7 @@ def generate_payment_certificate_pdf(
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
 
-    W = pdf.w - pdf.l_margin - pdf.r_margin   # usable width ≈ 190 mm
+    W = pdf.w - pdf.l_margin - pdf.r_margin  # usable width ≈ 190 mm
     lm = pdf.l_margin
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -140,8 +139,10 @@ def generate_payment_certificate_pdf(
         pdf.ln(8)
 
     def _info_row(
-        label1: str, val1: str,
-        label2: str = "", val2: str = "",
+        label1: str,
+        val1: str,
+        label2: str = "",
+        val2: str = "",
     ) -> None:
         col = W / 2
         y = pdf.get_y()
@@ -250,7 +251,7 @@ def generate_payment_certificate_pdf(
     # ─────────────────────────────────────────────────────────────────────────
     _section_bar("CERTIFICATION & PAYMENT RECORD")
 
-    def _timeline_row(event: str, dt: Optional[date], ref: str = "") -> None:
+    def _timeline_row(event: str, dt: date | None, ref: str = "") -> None:
         y = pdf.get_y()
         pdf.set_font("Helvetica", "B", 8)
         pdf.set_xy(lm + 2, y)
@@ -313,6 +314,12 @@ def generate_payment_certificate_pdf(
     pdf.ln(2)
     pdf.set_x(lm)
     pdf.cell(W / 2, 4, "IMPERIAL HOMES LIMITED  •  CONFIDENTIAL", border=0)
-    pdf.cell(W / 2, 4, f"Certificate: {certificate_number}  |  Generated: {date.today().strftime('%d %b %Y')}", border=0, align="R")
+    pdf.cell(
+        W / 2,
+        4,
+        f"Certificate: {certificate_number}  |  Generated: {date.today().strftime('%d %b %Y')}",
+        border=0,
+        align="R",
+    )
 
     return bytes(pdf.output())

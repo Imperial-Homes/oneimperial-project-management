@@ -3,7 +3,6 @@
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -13,13 +12,13 @@ _LR, _LG, _LB = 250, 242, 244
 _GR, _GG, _GB = 245, 245, 245
 
 _STATUS_COLOURS = {
-    "approved":    (34, 139, 34),
+    "approved": (34, 139, 34),
     "implemented": (34, 139, 34),
-    "submitted":   (30, 144, 255),
-    "under_review":(255, 165, 0),
-    "rejected":    (200, 50, 50),
-    "draft":       (120, 120, 120),
-    "cancelled":   (120, 120, 120),
+    "submitted": (30, 144, 255),
+    "under_review": (255, 165, 0),
+    "rejected": (200, 50, 50),
+    "draft": (120, 120, 120),
+    "cancelled": (120, 120, 120),
 }
 
 
@@ -45,14 +44,14 @@ def generate_variation_order_pdf(
     new_total_amount: float = 0.0,
     # Time impact
     impact_on_timeline: int = 0,
-    original_completion_date: Optional[date] = None,
-    new_completion_date: Optional[date] = None,
+    original_completion_date: date | None = None,
+    new_completion_date: date | None = None,
     # Narrative
     description: str = "",
     justification: str = "",
     impact_assessment: str = "",
     # Approval
-    approved_date: Optional[date] = None,
+    approved_date: date | None = None,
     rejection_reason: str = "",
 ) -> bytes:
     """Return a Variation Order PDF as raw bytes."""
@@ -161,7 +160,6 @@ def generate_variation_order_pdf(
     # ── Financial impact ──────────────────────────────────────────────────────
     _sbar("FINANCIAL IMPACT")
 
-    fin_headers = ["Item", "Amount"]
     fin_w = [W - 4 - 45, 45]
     fin_rows = [
         ["Original Contract Value", f"{currency}  {original_amount:,.2f}"],
@@ -229,11 +227,13 @@ def generate_variation_order_pdf(
     pdf.ln(2)
     sig_w = (W - 8) / 3
     sig_y = pdf.get_y()
-    for i, (role, name_hint) in enumerate([
-        ("Prepared By", "Project Manager"),
-        ("Approved By", "Client / Employer"),
-        ("Acknowledged By", contractor_name or "Contractor"),
-    ]):
+    for i, (role, name_hint) in enumerate(
+        [
+            ("Prepared By", "Project Manager"),
+            ("Approved By", "Client / Employer"),
+            ("Acknowledged By", contractor_name or "Contractor"),
+        ]
+    ):
         x = lm + i * (sig_w + 4)
         if i == 1 and approved_date:
             pdf.set_font("Helvetica", "", 7)

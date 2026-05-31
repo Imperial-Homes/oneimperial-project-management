@@ -11,7 +11,7 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 
 
-class IncidentSeverity(str, enum.Enum):
+class IncidentSeverity(enum.StrEnum):
     """Incident severity levels"""
 
     MINOR = "minor"
@@ -20,7 +20,7 @@ class IncidentSeverity(str, enum.Enum):
     CRITICAL = "critical"
 
 
-class IncidentStatus(str, enum.Enum):
+class IncidentStatus(enum.StrEnum):
     """Incident status"""
 
     INVESTIGATING = "investigating"
@@ -29,7 +29,7 @@ class IncidentStatus(str, enum.Enum):
     CLOSED = "closed"
 
 
-class IncidentType(str, enum.Enum):
+class IncidentType(enum.StrEnum):
     """Types of incidents"""
 
     SAFETY = "safety"

@@ -127,7 +127,7 @@ async def clear_old_data(session):
     ]
     for table in tables:
         try:
-            await session.execute(text(f"DELETE FROM {table}"))
+            await session.execute(text(f"DELETE FROM {table}"))  # nosec B608
         except Exception as e:
             print(f"  Could not clear {table}: {e}")
     await session.flush()
@@ -363,7 +363,7 @@ async def main():
             # Seed fresh data
             async with AsyncSessionLocal() as session2:
                 resources = await seed_resources(session2)
-                projects = await seed_projects(session2, resources)
+                await seed_projects(session2, resources)
                 await session2.commit()
 
             print("\nProject Management Seeding completed successfully!")

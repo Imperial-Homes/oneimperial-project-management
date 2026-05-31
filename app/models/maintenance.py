@@ -41,7 +41,7 @@ class MaintenanceBudget(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     budget_reference = Column(String(100), unique=True, nullable=False, index=True)
     title = Column(String(255), nullable=False)
-    project_id = Column(UUID(as_uuid=True))   # optional link to a PM project
+    project_id = Column(UUID(as_uuid=True))  # optional link to a PM project
     project_name = Column(String(255))
     category = Column(String(100))  # Routine | Corrective | Emergency | Preventative
     total_amount = Column(Numeric(15, 2), nullable=False)
@@ -86,9 +86,9 @@ class RentalScheduleEntry(Base):
     __tablename__ = "rental_schedule_entries"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    property_name = Column(String(255), nullable=False)   # e.g. "Palazzo", "Imperial Court"
-    sheet_year = Column(String(20))                       # e.g. "2026"
-    commercial_unit = Column(String(100))                 # Suite1, Block 5, etc.
+    property_name = Column(String(255), nullable=False)  # e.g. "Palazzo", "Imperial Court"
+    sheet_year = Column(String(20))  # e.g. "2026"
+    commercial_unit = Column(String(100))  # Suite1, Block 5, etc.
     square_meters = Column(String(50))
     owner = Column(String(255))
     tenant = Column(String(255))

@@ -3,7 +3,6 @@
 import logging
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -31,22 +30,22 @@ def generate_handover_certificate_pdf(
     client_phone: str = "",
     # Financial obligations
     sinking_fund_invoiced: bool = False,
-    sinking_fund_amount: Optional[float] = None,
+    sinking_fund_amount: float | None = None,
     transfer_document_invoiced: bool = False,
-    transfer_document_amount: Optional[float] = None,
+    transfer_document_amount: float | None = None,
     hoa_forms_completed: bool = False,
     facility_manager_info_provided: bool = False,
     all_payments_made: bool = False,
-    payments_date: Optional[datetime] = None,
+    payments_date: datetime | None = None,
     # Pack / approval
     handover_pack_drafted: bool = False,
     doa_approved: bool = False,
-    doa_approved_date: Optional[datetime] = None,
+    doa_approved_date: datetime | None = None,
     # Sign-off
     client_signed: bool = False,
-    client_signed_date: Optional[datetime] = None,
+    client_signed_date: datetime | None = None,
     keys_handed_over: bool = False,
-    handover_date: Optional[datetime] = None,
+    handover_date: datetime | None = None,
     # Narrative
     letter_to_client: str = "",
     notes: str = "",
@@ -154,19 +153,30 @@ def generate_handover_certificate_pdf(
     pdf.ln(1)
 
     checklist = [
-        (sinking_fund_invoiced, "Sinking Fund Invoiced",
-         f"{currency} {sinking_fund_amount:,.2f}" if sinking_fund_amount else ""),
-        (transfer_document_invoiced, "Transfer Document Invoiced",
-         f"{currency} {transfer_document_amount:,.2f}" if transfer_document_amount else ""),
+        (
+            sinking_fund_invoiced,
+            "Sinking Fund Invoiced",
+            f"{currency} {sinking_fund_amount:,.2f}" if sinking_fund_amount else "",
+        ),
+        (
+            transfer_document_invoiced,
+            "Transfer Document Invoiced",
+            f"{currency} {transfer_document_amount:,.2f}" if transfer_document_amount else "",
+        ),
         (hoa_forms_completed, "HOA Forms Completed", ""),
         (facility_manager_info_provided, "Facility Manager Information Provided", ""),
-        (all_payments_made, "All Payments Made / Cleared",
-         payments_date.strftime("%d %b %Y") if payments_date else ""),
+        (all_payments_made, "All Payments Made / Cleared", payments_date.strftime("%d %b %Y") if payments_date else ""),
         (handover_pack_drafted, "Handover Pack Drafted", ""),
-        (doa_approved, "DOA / Management Approval",
-         doa_approved_date.strftime("%d %b %Y") if doa_approved_date else ""),
-        (client_signed, "Client Sign-off Received",
-         client_signed_date.strftime("%d %b %Y") if client_signed_date else ""),
+        (
+            doa_approved,
+            "DOA / Management Approval",
+            doa_approved_date.strftime("%d %b %Y") if doa_approved_date else "",
+        ),
+        (
+            client_signed,
+            "Client Sign-off Received",
+            client_signed_date.strftime("%d %b %Y") if client_signed_date else "",
+        ),
         (keys_handed_over, "Keys Handed Over", ""),
     ]
 
@@ -201,7 +211,9 @@ def generate_handover_certificate_pdf(
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Helvetica", "B", 10)
     pdf.set_xy(lm, y + 1)
-    label_text = "ALL OBLIGATIONS COMPLETE — HANDOVER FINALISED" if all_done else f"STATUS: {status.replace('_', ' ').upper()}"
+    label_text = (
+        "ALL OBLIGATIONS COMPLETE — HANDOVER FINALISED" if all_done else f"STATUS: {status.replace('_', ' ').upper()}"
+    )
     pdf.cell(W, 6, label_text, align="C")
     pdf.set_text_color(0, 0, 0)
     pdf.ln(12)
@@ -234,11 +246,13 @@ def generate_handover_certificate_pdf(
     sig_w = (W - 8) / 3
     sig_y = pdf.get_y()
 
-    for i, (role, name) in enumerate([
-        ("Client / Purchaser", client_name),
-        ("Handled By / Sales", handled_by or "Sales Officer"),
-        ("Management Approval", "Director / DOA"),
-    ]):
+    for i, (role, name) in enumerate(
+        [
+            ("Client / Purchaser", client_name),
+            ("Handled By / Sales", handled_by or "Sales Officer"),
+            ("Management Approval", "Director / DOA"),
+        ]
+    ):
         x = lm + i * (sig_w + 4)
         pdf.set_draw_color(160, 160, 160)
         pdf.line(x + 2, sig_y + 18, x + sig_w - 2, sig_y + 18)

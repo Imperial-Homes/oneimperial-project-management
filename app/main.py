@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import (
@@ -22,15 +23,14 @@ from app.api import (
     resource_assignments,
     resource_utilization,
     resources,
+    retention,
     schedules,
     site_visits,
     tasks,
     timeline,
     variations,
-    retention,
 )
 from app.config import settings
-from prometheus_fastapi_instrumentator import Instrumentator
 from app.core.logging import RequestIDMiddleware, configure_logging
 
 logger = logging.getLogger(__name__)

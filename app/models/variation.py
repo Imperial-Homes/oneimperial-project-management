@@ -11,7 +11,7 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 
 
-class VariationType(str, enum.Enum):
+class VariationType(enum.StrEnum):
     """Variation types"""
 
     SCOPE_CHANGE = "scope_change"
@@ -22,7 +22,7 @@ class VariationType(str, enum.Enum):
     REGULATORY = "regulatory"
 
 
-class VariationStatus(str, enum.Enum):
+class VariationStatus(enum.StrEnum):
     """Variation statuses"""
 
     DRAFT = "draft"

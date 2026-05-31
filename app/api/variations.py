@@ -192,6 +192,7 @@ async def download_variation_order_pdf(
 ):
     """Generate and download a branded Variation Order PDF."""
     from fastapi.responses import Response
+
     from app.utils.pdf_variation import generate_variation_order_pdf
 
     result = await db.execute(select(ProjectVariation).where(ProjectVariation.id == variation_id))
@@ -204,6 +205,7 @@ async def download_variation_order_pdf(
     project_code = ""
     if var.project_id:
         from app.models.project import Project
+
         pr = await db.execute(select(Project).where(Project.id == var.project_id))
         proj = pr.scalar_one_or_none()
         if proj:

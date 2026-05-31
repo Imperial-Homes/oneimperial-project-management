@@ -20,9 +20,7 @@ async def list_budgets(
     current_user: UUID = Depends(get_current_user),
 ):
     """List all project budgets."""
-    result = await db.execute(
-        select(ProjectBudget).order_by(ProjectBudget.version.desc())
-    )
+    result = await db.execute(select(ProjectBudget).order_by(ProjectBudget.version.desc()))
     return result.scalars().all()
 
 
@@ -104,7 +102,7 @@ async def get_budget_summary(
     # Get approved budget
     result = await db.execute(
         select(ProjectBudget)
-        .where(ProjectBudget.project_id == project_id, ProjectBudget.is_approved == True)
+        .where(ProjectBudget.project_id == project_id, ProjectBudget.is_approved)
         .order_by(ProjectBudget.version.desc())
     )
     budget = result.scalar_one_or_none()
