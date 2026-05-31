@@ -141,7 +141,7 @@ async def create_payment(
         description=data.description,
         notes=data.notes,
         status=data.status,
-        created_by=current_user,
+        created_by=current_user["id"],
     )
     db.add(payment)
     await db.commit()
@@ -360,7 +360,7 @@ async def create_budget(
         end_date=date.fromisoformat(data.end_date) if data.end_date else None,
         status="pending_approval",
         notes=data.notes,
-        created_by=current_user,
+        created_by=current_user["id"],
         created_by_name=data.created_by_name,
     )
     db.add(budget)
@@ -521,7 +521,7 @@ async def create_service_fee(
         payment_date=date.fromisoformat(data.payment_date) if data.payment_date else None,
         receipt_number=data.receipt_number,
         notes=data.notes,
-        created_by=current_user,
+        created_by=current_user["id"],
     )
     db.add(fee)
     await db.commit()
@@ -681,7 +681,7 @@ async def import_service_fees(
             payment_date=_parse_date(row[c_pay_date]) if c_pay_date is not None else None,
             receipt_number=str(row[c_receipt] or "").strip() if c_receipt is not None else None,
             notes=str(row[c_notes] or "").strip() if c_notes is not None else None,
-            created_by=current_user,
+            created_by=current_user["id"],
         )
         db.add(fee)
         count += 1
@@ -842,7 +842,7 @@ async def import_rental_schedule(
                 tenancy_agreement_status=str(row[c_ta_status] or "").strip() if c_ta_status is not None else None,
                 due_date=_parse_date(row[c_due]) if c_due is not None else None,
                 status_notes=str(row[c_status] or "").strip() if c_status is not None else None,
-                imported_by=current_user,
+                imported_by=current_user["id"],
             )
             db.add(entry)
             count += 1
