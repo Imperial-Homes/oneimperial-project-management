@@ -60,7 +60,7 @@ class PaymentCreate(BaseModel):
 @router.get("/payments")
 async def list_payments(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=500),
     payment_type: str | None = None,
     search: str | None = None,
     db: AsyncSession = Depends(get_db),
@@ -287,7 +287,7 @@ def _budget_row(b: MaintenanceBudget) -> dict:
 @router.get("/budgets")
 async def list_budgets(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=200),
+    page_size: int = Query(20, ge=1, le=500),
     status_filter: str | None = Query(None, alias="status"),
     search: str | None = None,
     db: AsyncSession = Depends(get_db),
@@ -468,7 +468,7 @@ def _fee_row(f: MaintenanceServiceFee) -> dict:
 @router.get("/service-fees")
 async def list_service_fees(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=500),
     status_filter: str | None = Query(None, alias="status"),
     search: str | None = None,
     db: AsyncSession = Depends(get_db),
