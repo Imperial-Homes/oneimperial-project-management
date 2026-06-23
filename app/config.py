@@ -46,6 +46,18 @@ class Settings(BaseSettings):
     FINANCE_SERVICE_URL: str = "http://finance-accounting:8080"
     NOTIFICATION_SERVICE_URL: str = "http://user-management:8080/notifications"
 
+    # File Upload
+    MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
+    ALLOWED_EXTENSIONS: list = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]
+
+    # Digital Ocean Spaces
+    DO_SPACES_REGION: str = "lon1"
+    DO_SPACES_ENDPOINT: str = "https://lon1.digitaloceanspaces.com"
+    DO_SPACES_KEY: str | None = None
+    DO_SPACES_SECRET: str | None = None
+    DO_SPACES_BUCKET: str = "oneimperial-storage"
+    DO_SPACES_USE_SSL: bool = True
+
     # Currency
     DEFAULT_CURRENCY: str = "GHS"
 
