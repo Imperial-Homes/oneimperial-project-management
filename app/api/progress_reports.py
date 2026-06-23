@@ -3,7 +3,7 @@
 import logging
 import os
 import uuid as uuid_lib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from math import ceil
 from uuid import UUID
 
@@ -90,7 +90,7 @@ async def upload_progress_report_file(
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     file_name = f"{uuid_lib.uuid4()}{ext}"
     storage_path = f"project/progress-reports/{now.year}/{now.month:02d}/{file_name}"
 
