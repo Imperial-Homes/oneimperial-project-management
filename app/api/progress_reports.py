@@ -1,14 +1,17 @@
 """Progress Report API endpoints for project status reporting."""
 
 import logging
-from datetime import datetime
+import os
+import uuid as uuid_lib
+from datetime import datetime, timezone
 from math import ceil
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cloud_storage import cloud_storage
 from app.core.deps import get_current_user
 from app.database import get_db
 from app.models.progress_report import ProgressReport
@@ -68,6 +71,33 @@ async def get_progress_report_stats(
         submitted=submitted or 0,
         approved=approved or 0,
     )
+
+
+@router.post("/upload")
+async def upload_progress_report_file(
+    file: UploadFile = File(...),
+    current_user: UUID = Depends(get_current_user),
+):
+    """Upload a file attachment for a progress report to cloud storage."""
+    if not cloud_storage.is_available():
+        raise HTTPException(status_code=503, detail="Cloud storage not configured")
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+
+    now = datetime.now(timezone.utc)
+    file_name = f"{uuid_lib.uuid4()}{ext}"
+    storage_path = f"project/progress-reports/{now.year}/{now.month:02d}/{file_name}"
+
+    url = cloud_storage.upload_file(content, storage_path, file.content_type)
+    logger.info(f"Progress report file uploaded: {storage_path}")
+
+    return {"url": url, "file_name": file.filename}
 
 
 @router.get("", response_model=ProgressReportList)

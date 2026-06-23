@@ -32,6 +32,9 @@ redis==5.0.1
 # Utilities
 python-dotenv>=1.2.2
 
+# Cloud storage (Digital Ocean Spaces)
+boto3>=1.26.0
+
 # Email
 requests>=2.33.0
 python-json-logger==2.0.7
