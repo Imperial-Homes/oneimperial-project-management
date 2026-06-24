@@ -39,6 +39,7 @@ class ProjectBase(BaseModel):
     description: str | None = None
     project_type: str = Field(..., max_length=100)
     client_id: UUID | None = None
+    client_name: str | None = Field(None, max_length=255)
     start_date: date | None = None
     target_end_date: date | None = None
     priority: str = Field(default="medium", max_length=20)
