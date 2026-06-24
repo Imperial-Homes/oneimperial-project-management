@@ -21,6 +21,7 @@ class Project(Base):
     description = Column(Text)
     project_type = Column(String(100), nullable=False, index=True)  # construction, renovation, development
     client_id = Column(PostgreSQLUUID(as_uuid=True), index=True)  # From CRM
+    client_name = Column(String(255))
     start_date = Column(Date)
     target_end_date = Column(Date)
     actual_end_date = Column(Date)
