@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip wheel && \
+RUN pip install --no-cache-dir --upgrade pip wheel setuptools && \
     pip install --no-cache-dir --user -r requirements.txt
 
 # Runtime stage
@@ -25,7 +25,7 @@ WORKDIR /app
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir --upgrade pip wheel
+    && pip install --no-cache-dir --upgrade pip wheel setuptools
 
 # Copy Python dependencies from builder
 COPY --from=builder /root/.local /root/.local
