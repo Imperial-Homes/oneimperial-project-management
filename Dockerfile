@@ -27,6 +27,12 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir --upgrade pip wheel setuptools
 
+# Drop pip from the runtime image. Nothing here invokes it (CMD is uvicorn,
+# migrations use the alembic binary), and pip's vendored manifest reports
+# CVEs for msgpack/setuptools versions it only declares, which no upgrade
+# can clear.
+RUN python -m pip uninstall -y pip
+
 # Copy Python dependencies from builder
 COPY --from=builder /root/.local /root/.local
 
