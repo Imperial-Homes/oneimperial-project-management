@@ -4,7 +4,9 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer, field_validator
+
+from app.core.cloud_storage import cloud_storage
 
 
 class HandoverPackBase(BaseModel):
@@ -45,7 +47,11 @@ class HandoverPackBase(BaseModel):
 
 
 class HandoverPackCreate(HandoverPackBase):
-    pass
+    @field_validator("handover_pack_url", "letter_to_client_url", mode="before")
+    @classmethod
+    def normalize_file_urls(cls, value):
+        # Store the bare key, not a (presigned) URL to our bucket.
+        return cloud_storage.normalize_reference(value)
 
 
 class HandoverPackUpdate(BaseModel):
@@ -80,6 +86,12 @@ class HandoverPackUpdate(BaseModel):
     issues_noted: str | None = None
     status: str | None = None
 
+    @field_validator("handover_pack_url", "letter_to_client_url", mode="before")
+    @classmethod
+    def normalize_file_urls(cls, value):
+        # Store the bare key, not a (presigned) URL to our bucket.
+        return cloud_storage.normalize_reference(value)
+
 
 class HandoverPackResponse(HandoverPackBase):
     id: uuid.UUID
@@ -89,6 +101,11 @@ class HandoverPackResponse(HandoverPackBase):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_serializer("handover_pack_url", "letter_to_client_url")
+    def sign_file_urls(self, value: str | None) -> str | None:
+        # Spaces objects are private; serve a fresh presigned URL.
+        return cloud_storage.presign_stored(value)
 
 
 class HandoverPackList(BaseModel):

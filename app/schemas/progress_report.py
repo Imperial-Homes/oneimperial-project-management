@@ -3,7 +3,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer, field_validator
+
+from app.core.cloud_storage import cloud_storage
 
 
 class ProgressReportBase(BaseModel):
@@ -39,6 +41,12 @@ class ProgressReportCreate(ProgressReportBase):
     compiled_by: str | None = Field(None, max_length=255)
     compiled_by_id: UUID | None = None
 
+    @field_validator("attachment_url", mode="before")
+    @classmethod
+    def normalize_attachment_url(cls, value):
+        # Store the bare key, not a (presigned) URL to our bucket.
+        return cloud_storage.normalize_reference(value)
+
 
 class ProgressReportUpdate(BaseModel):
     """Update progress report schema."""
@@ -62,6 +70,12 @@ class ProgressReportUpdate(BaseModel):
     status: str | None = Field(None, max_length=50)
     attachment_url: str | None = Field(None, max_length=500)
 
+    @field_validator("attachment_url", mode="before")
+    @classmethod
+    def normalize_attachment_url(cls, value):
+        # Store the bare key, not a (presigned) URL to our bucket.
+        return cloud_storage.normalize_reference(value)
+
 
 class ProgressReportResponse(ProgressReportBase):
     """Progress report response schema."""
@@ -73,9 +87,16 @@ class ProgressReportResponse(ProgressReportBase):
     compiled_by_id: UUID | None
     created_at: datetime
     updated_at: datetime
+    # No max_length: served as a presigned URL, which is longer than the stored key.
+    attachment_url: str | None = None
 
     class Config:
         from_attributes = True
+
+    @field_serializer("attachment_url")
+    def sign_attachment_url(self, value: str | None) -> str | None:
+        # Spaces objects are private; serve a fresh presigned URL.
+        return cloud_storage.presign_stored(value)
 
 
 class ProgressReportList(BaseModel):

@@ -3,7 +3,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer, field_validator
+
+from app.core.cloud_storage import cloud_storage
 
 
 class SiteVisitBase(BaseModel):
@@ -39,6 +41,12 @@ class SiteVisitCreate(SiteVisitBase):
     logged_by: str | None = Field(None, max_length=255)
     logged_by_id: UUID | None = None
 
+    @field_validator("photos_url", "report_url", mode="before")
+    @classmethod
+    def normalize_file_urls(cls, value):
+        # Store the bare key, not a (presigned) URL to our bucket.
+        return cloud_storage.normalize_reference(value)
+
 
 class SiteVisitUpdate(BaseModel):
     """Update site visit schema."""
@@ -62,6 +70,12 @@ class SiteVisitUpdate(BaseModel):
     report_url: str | None = Field(None, max_length=500)
     status: str | None = Field(None, max_length=50)
 
+    @field_validator("photos_url", "report_url", mode="before")
+    @classmethod
+    def normalize_file_urls(cls, value):
+        # Store the bare key, not a (presigned) URL to our bucket.
+        return cloud_storage.normalize_reference(value)
+
 
 class SiteVisitResponse(SiteVisitBase):
     """Site visit response schema."""
@@ -73,9 +87,17 @@ class SiteVisitResponse(SiteVisitBase):
     logged_by_id: UUID | None
     created_at: datetime
     updated_at: datetime
+    # No max_length: served as presigned URLs, which are longer than the stored keys.
+    photos_url: str | None = None
+    report_url: str | None = None
 
     class Config:
         from_attributes = True
+
+    @field_serializer("photos_url", "report_url")
+    def sign_file_urls(self, value: str | None) -> str | None:
+        # Spaces objects are private; serve a fresh presigned URL.
+        return cloud_storage.presign_stored(value)
 
 
 class SiteVisitList(BaseModel):

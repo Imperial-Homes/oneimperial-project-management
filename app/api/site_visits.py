@@ -94,10 +94,13 @@ async def upload_site_visit_file(
     file_name = f"{uuid_lib.uuid4()}{ext}"
     storage_path = f"project/site-visits/{now.year}/{now.month:02d}/{file_name}"
 
-    url = cloud_storage.upload_file(content, storage_path, file.content_type)
+    cloud_storage.upload_file(content, storage_path, file.content_type)
     logger.info(f"Site visit file uploaded: {storage_path}")
 
-    return {"url": url, "file_name": file.filename}
+    # Objects are private: return a short-lived presigned URL plus the bare key.
+    url = cloud_storage.presign_stored(storage_path)
+
+    return {"url": url, "key": storage_path, "file_name": file.filename}
 
 
 @router.get("", response_model=SiteVisitList)
