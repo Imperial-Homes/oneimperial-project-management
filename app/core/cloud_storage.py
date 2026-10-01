@@ -11,6 +11,23 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Key prefixes this service may sign or store: its own uploads (project/progress-reports/,
+# project/site-visits/) and handover letters uploaded through CRM (crm/legal-documents/).
+# The bucket also holds private DB backups under backups/; never add that prefix.
+SIGNABLE_PREFIXES = ("project/", "crm/legal-documents/")
+
+
+def is_signable_key(key: str) -> bool:
+    """Check that a key is under an allowlisted prefix and has no dot segments."""
+    if not key.startswith(SIGNABLE_PREFIXES):
+        return False
+    return not any(part in (".", "..") for part in key.split("/"))
+
+
+def _key_prefix(key: str) -> str:
+    """Top-level folder of a key, for logging without exposing the full key."""
+    return key.split("/", 1)[0] + "/"
+
 
 class CloudStorage:
     """Digital Ocean Spaces cloud storage handler."""
@@ -119,9 +136,15 @@ class CloudStorage:
         return None
 
     def presign_stored(self, value: str | None, expiration: int = 3600) -> str | None:
-        """Return a fresh presigned URL for a stored file reference, or the value unchanged."""
+        """Return a fresh presigned URL for a stored file reference, or the value unchanged.
+
+        References to our bucket outside SIGNABLE_PREFIXES return None.
+        """
         try:
             key = self.key_from_reference(value)
+            if key and not is_signable_key(key):
+                logger.warning(f"Refusing to presign key outside allowed prefixes: {_key_prefix(key)}")
+                return None
             if key and self.client:
                 url = self.generate_presigned_url(key, expiration)
                 if url:
@@ -133,13 +156,18 @@ class CloudStorage:
     def normalize_reference(self, value):
         """Return the bare key for a URL to our bucket (public or presigned), else the value unchanged.
 
-        Used on write so the DB stores keys, not expiring presigned links.
+        Used on write so the DB stores keys, not expiring presigned links. Raises
+        ValueError for a reference to our bucket outside SIGNABLE_PREFIXES.
         """
-        if isinstance(value, str) and value.startswith("http"):
-            key = self.key_from_reference(value)
-            if key:
-                return key
-        return value
+        if not isinstance(value, str):
+            return value
+
+        key = self.key_from_reference(value)
+        if not key:
+            return value
+        if not is_signable_key(key):
+            raise ValueError("File reference is not allowed")
+        return key if value.startswith("http") else value
 
     def delete_file(self, file_path: str) -> bool:
         """Delete file from Digital Ocean Spaces."""

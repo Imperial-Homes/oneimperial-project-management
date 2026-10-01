@@ -3,17 +3,20 @@
 Pure tests: no database and no network (presigning is a local computation).
 """
 
+import importlib
 import io
 from uuid import uuid4
 
 import pytest
 from app.config import settings
 from app.core import cloud_storage as cloud_storage_module
-from app.core.cloud_storage import CloudStorage
+from app.core.cloud_storage import SIGNABLE_PREFIXES, CloudStorage
 from fastapi import UploadFile
+from pydantic import ValidationError
 
 BUCKET = "oneimperial-storage"
 KEY = "project/site-visits/2026/10/0b8a7c1e-1234-4c3b-9a55-6f6e2d2b9f10.jpg"
+BACKUP_KEY = "backups/oneimperial_2026-10-01_0300.tar.gz"
 
 
 @pytest.fixture
@@ -186,8 +189,6 @@ def test_response_schemas_sign_file_urls_without_mutating(global_storage: CloudS
 async def test_upload_endpoints_return_presigned_url_and_key(
     global_storage: CloudStorage, monkeypatch, module_name, endpoint_name, prefix
 ):
-    import importlib
-
     module = importlib.import_module(module_name)
     uploaded = {}
 
@@ -271,3 +272,141 @@ def test_list_response_survives_fastapi_round_trip_with_long_key(global_storage:
 
     revalidated = ProgressReportList.model_validate(dumped)
     assert _is_signed(revalidated.model_dump(mode="json")["items"][0]["attachment_url"])
+
+
+def _backup_refs(storage: CloudStorage) -> list[str]:
+    """A backups/ key as a bare key, a public CDN URL and a presigned URL."""
+    return [
+        BACKUP_KEY,
+        f"https://{BUCKET}.lon1.cdn.digitaloceanspaces.com/{BACKUP_KEY}",
+        storage.generate_presigned_url(BACKUP_KEY),
+    ]
+
+
+@pytest.mark.unit
+def test_signable_prefixes_never_include_backups():
+    assert SIGNABLE_PREFIXES == ("project/", "crm/legal-documents/")
+    assert not any("backups/".startswith(prefix) or prefix.startswith("backups") for prefix in SIGNABLE_PREFIXES)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("index", [0, 1, 2])
+def test_presign_stored_refuses_backups(storage: CloudStorage, index):
+    ref = _backup_refs(storage)[index]
+    assert _is_signed(_backup_refs(storage)[2])
+    assert storage.presign_stored(ref) is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "value",
+    [
+        # Other services' prefixes in the same bucket
+        "user_documents/1/national-id.pdf",
+        "employee_documents/1/contract.pdf",
+        "legal/documents/2026/contract.pdf",
+        "properties/1/a.jpg",
+        "crm/hoa-registrations/2026/10/a.pdf",
+        f"https://{BUCKET}.lon1.cdn.digitaloceanspaces.com/user_documents/1/national-id.pdf",
+        # Dot segments cannot escape an allowlisted prefix
+        "project/../backups/db.tar.gz",
+        f"https://{BUCKET}.lon1.cdn.digitaloceanspaces.com/project/%2E%2E/backups/db.tar.gz",
+    ],
+)
+def test_presign_stored_refuses_non_allowlisted_keys(storage: CloudStorage, value):
+    assert storage.presign_stored(value) is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "value",
+    [
+        "project/progress-reports/2026/10/a.pdf",
+        "crm/legal-documents/2026/10/letter.pdf",
+        f"https://{BUCKET}.lon1.cdn.digitaloceanspaces.com/crm/legal-documents/2026/10/letter.pdf",
+    ],
+)
+def test_presign_stored_signs_allowlisted_keys(storage: CloudStorage, value):
+    assert _is_signed(storage.presign_stored(value))
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("index", [0, 1, 2])
+@pytest.mark.parametrize(
+    ("module_name", "schema_name", "field", "required"),
+    [
+        ("app.schemas.progress_report", "ProgressReportUpdate", "attachment_url", {}),
+        ("app.schemas.site_visit", "SiteVisitUpdate", "photos_url", {}),
+        ("app.schemas.site_visit", "SiteVisitUpdate", "report_url", {}),
+        (
+            "app.schemas.handover_pack",
+            "HandoverPackCreate",
+            "letter_to_client_url",
+            {"property_name": "p", "client_name": "c"},
+        ),
+        ("app.schemas.handover_pack", "HandoverPackUpdate", "handover_pack_url", {}),
+    ],
+)
+def test_write_rejects_backups_refs(global_storage: CloudStorage, module_name, schema_name, field, required, index):
+    schema = getattr(importlib.import_module(module_name), schema_name)
+    with pytest.raises(ValidationError):
+        schema(**required, **{field: _backup_refs(global_storage)[index]})
+
+
+@pytest.mark.unit
+def test_write_rejects_other_service_keys(global_storage: CloudStorage):
+    from app.schemas.progress_report import ProgressReportUpdate
+
+    with pytest.raises(ValidationError):
+        ProgressReportUpdate(attachment_url="user_documents/1/national-id.pdf")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "value",
+    [
+        "project/../backups/db.tar.gz",
+        "crm/legal-documents/../../backups/db.tar.gz",
+        f"https://{BUCKET}.lon1.cdn.digitaloceanspaces.com/project/%2E%2E/backups/db.tar.gz",
+    ],
+)
+def test_traversal_keys_rejected_on_read_and_write(global_storage: CloudStorage, value):
+    from app.schemas.site_visit import SiteVisitUpdate
+
+    assert global_storage.presign_stored(value) is None
+    with pytest.raises(ValidationError):
+        SiteVisitUpdate(photos_url=value)
+
+
+@pytest.mark.unit
+def test_write_allows_our_allowlisted_and_foreign_refs(global_storage: CloudStorage):
+    from app.schemas.progress_report import ProgressReportUpdate
+
+    letter = f"https://{BUCKET}.lon1.cdn.digitaloceanspaces.com/crm/legal-documents/2026/10/letter.pdf"
+    assert ProgressReportUpdate(attachment_url=letter).attachment_url == "crm/legal-documents/2026/10/letter.pdf"
+    assert (
+        ProgressReportUpdate(attachment_url="https://example.com/x.pdf").attachment_url == "https://example.com/x.pdf"
+    )
+
+
+@pytest.mark.unit
+def test_api_returns_422_for_backups_ref(monkeypatch):
+    """The app's validation handler must return 422 (not 500) for a rejected file reference."""
+    from app.core.deps import get_current_user
+    from app.database import get_db
+    from app.main import app
+    from fastapi.testclient import TestClient
+
+    async def no_db():
+        yield None
+
+    monkeypatch.setitem(app.dependency_overrides, get_current_user, lambda: uuid4())
+    monkeypatch.setitem(app.dependency_overrides, get_db, no_db)
+
+    response = TestClient(app, raise_server_exceptions=False).post(
+        "/progress-reports",
+        json={"report_title": "t", "report_date": "2026-01-01T00:00:00", "attachment_url": BACKUP_KEY},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "attachment_url"]
