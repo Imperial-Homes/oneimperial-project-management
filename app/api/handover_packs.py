@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.deps import get_current_user
 from app.database import get_db
 from app.models.handover_pack import HandoverPack
 from app.schemas.handover_pack import (
@@ -17,7 +18,7 @@ from app.schemas.handover_pack import (
     HandoverPackUpdate,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 async def get_next_handover_id(db: AsyncSession) -> str:
