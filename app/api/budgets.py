@@ -24,6 +24,64 @@ async def list_budgets(
     return result.scalars().all()
 
 
+CATEGORIES = ("labor", "material", "equipment", "other")
+
+
+@router.get("/variance")
+async def budget_variance(
+    project_id: UUID | None = Query(None, description="One project, or every project with a budget"),
+    db: AsyncSession = Depends(get_db),
+    current_user: UUID = Depends(get_current_user),
+):
+    """Budget against recorded costs, by cost category, per project.
+
+    Uses each project's latest approved budget, or its latest version if none is
+    approved yet (flagged with approved=false).
+    """
+    query = select(ProjectBudget).order_by(
+        ProjectBudget.project_id, ProjectBudget.is_approved.desc(), ProjectBudget.version.desc()
+    )
+    if project_id:
+        query = query.where(ProjectBudget.project_id == project_id)
+    latest: dict = {}
+    for budget in (await db.execute(query)).scalars().all():
+        latest.setdefault(budget.project_id, budget)
+
+    costs_query = select(ProjectCost.project_id, func.lower(ProjectCost.cost_category), func.sum(ProjectCost.amount))
+    if project_id:
+        costs_query = costs_query.where(ProjectCost.project_id == project_id)
+    spent: dict = {}
+    for pid, category, total in (
+        await db.execute(costs_query.group_by(ProjectCost.project_id, func.lower(ProjectCost.cost_category)))
+    ).all():
+        key = category if category in CATEGORIES else "other"
+        spent[(pid, key)] = spent.get((pid, key), 0) + float(total or 0)
+
+    rows = []
+    for pid, budget in latest.items():
+        for category in CATEGORIES:
+            rows.append(
+                {
+                    "project_id": str(pid),
+                    "category": category,
+                    "budgeted": float(getattr(budget, f"{category}_budget") or 0),
+                    "spent": round(spent.get((pid, category), 0), 2),
+                    "currency": budget.currency,
+                    "approved": bool(budget.is_approved),
+                    "budget_version": budget.version,
+                }
+            )
+    budgeted = round(sum(r["budgeted"] for r in rows), 2)
+    total_spent = round(sum(r["spent"] for r in rows), 2)
+    return {
+        "rows": rows,
+        "budgeted": budgeted,
+        "spent": total_spent,
+        "variance": round(budgeted - total_spent, 2),
+        "contingency": round(sum(float(b.contingency_amount or 0) for b in latest.values()), 2),
+    }
+
+
 @router.get("/{project_id}", response_model=list[ProjectBudgetResponse])
 async def get_project_budgets(
     project_id: UUID,
@@ -104,6 +162,7 @@ async def get_budget_summary(
         select(ProjectBudget)
         .where(ProjectBudget.project_id == project_id, ProjectBudget.is_approved)
         .order_by(ProjectBudget.version.desc())
+        .limit(1)  # latest approved version; several versions may be approved over time
     )
     budget = result.scalar_one_or_none()
 
