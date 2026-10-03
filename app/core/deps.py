@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import InvalidTokenError as JWTError
 
 from app.config import settings
+from app.core.revocation import is_revoked
 
 security = HTTPBearer()
 
@@ -27,6 +28,9 @@ async def get_current_user(
         payload = jwt.decode(token, settings.jwt_public_key, algorithms=[settings.JWT_ALGORITHM])
         user_id: str | None = payload.get("sub")
         if user_id is None:
+            raise credentials_exception
+        # Refresh tokens are not accepted here; revoked sessions end immediately.
+        if payload.get("token_type") != "access" or await is_revoked(payload):
             raise credentials_exception
         return UUID(user_id)
     except JWTError:

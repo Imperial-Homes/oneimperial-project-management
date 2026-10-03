@@ -87,7 +87,7 @@ def auth_token(test_rsa_keypair, monkeypatch) -> str:
     monkeypatch.setattr(settings, "JWT_PUBLIC_KEY_B64", test_rsa_keypair["public_b64"])
 
     user_id = str(uuid4())
-    token_data = {"sub": user_id}
+    token_data = {"sub": user_id, "token_type": "access"}
     return jwt.encode(token_data, test_rsa_keypair["private_pem"], algorithm="RS256")
 
 

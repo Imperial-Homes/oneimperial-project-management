@@ -88,7 +88,7 @@ async def upload_progress_report_file(
 
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 10 MB.")
 
     now = datetime.now(UTC)
     file_name = f"{uuid_lib.uuid4()}{ext}"
