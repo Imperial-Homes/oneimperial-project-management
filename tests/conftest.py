@@ -57,6 +57,25 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides.clear()
 
 
+@pytest.fixture
+async def concurrent_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """Client whose requests each get their own session, so they can run concurrently."""
+    engine = create_async_engine(TEST_DATABASE_URL)
+    session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
+
+    async def override_get_db():
+        async with session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
+    await engine.dispose()
+
+
 @pytest.fixture(scope="session")
 def test_rsa_keypair():
     """Generate an ephemeral RSA key pair used only during the test session."""
