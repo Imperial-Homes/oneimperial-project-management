@@ -1,6 +1,7 @@
 """Payment Certificates API endpoints."""
 
 import logging
+import uuid
 from datetime import date, datetime
 from math import ceil
 from uuid import UUID
@@ -133,7 +134,7 @@ def _post_project_cost_journal(
 def generate_certificate_number() -> str:
     """Generate certificate number: PC-YYYYMMDD-XXXX"""
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    return f"PC-{timestamp}"
+    return f"PC-{timestamp}-{uuid.uuid4().hex[:4].upper()}"
 
 
 @router.get("", response_model=PaymentCertificateList)

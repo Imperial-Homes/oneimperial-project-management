@@ -1,5 +1,6 @@
 """Project Variations API endpoints."""
 
+import uuid
 from datetime import date, datetime
 from math import ceil
 from uuid import UUID
@@ -19,7 +20,7 @@ router = APIRouter()
 def generate_variation_number() -> str:
     """Generate variation number: VAR-YYYYMMDD-XXXX"""
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    return f"VAR-{timestamp}"
+    return f"VAR-{timestamp}-{uuid.uuid4().hex[:4].upper()}"
 
 
 @router.get("", response_model=VariationList)

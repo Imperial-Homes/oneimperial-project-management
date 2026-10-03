@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
-from app.database import get_db
+from app.database import get_db, lock_sequence
 from app.models.maintenance import (
     MaintenanceBudget,
     MaintenancePayment,
@@ -26,10 +26,12 @@ router = APIRouter()
 
 
 async def _next_ref(db: AsyncSession, model, col_name: str, prefix: str) -> str:
-    getattr(model, col_name)
-    result = await db.execute(select(func.count()).select_from(model))
-    count = (result.scalar() or 0) + 1
-    return f"{prefix}-{count:04d}"
+    await lock_sequence(db, f"{model.__tablename__}.{col_name}")
+    col = getattr(model, col_name)
+    # Only generated refs: payment references can also be typed in by the user.
+    last = await db.scalar(select(col).where(col.regexp_match(f"^{prefix}-[0-9]+$")).order_by(col.desc()).limit(1))
+    seq = int(last.rsplit("-", 1)[-1]) + 1 if last else 1
+    return f"{prefix}-{seq:04d}"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
