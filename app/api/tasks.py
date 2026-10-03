@@ -1,6 +1,7 @@
 """Task API endpoints."""
 
 import logging
+import uuid
 from datetime import datetime
 from math import ceil
 from uuid import UUID
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def generate_task_code() -> str:
     """Generate task code."""
-    return f"TSK-{datetime.now().year}-{datetime.now().strftime('%m%d%H%M%S')}"
+    return f"TSK-{datetime.now().strftime('%y%m%d%H%M%S')}{uuid.uuid4().hex[:4].upper()}"
 
 
 @router.get("", response_model=TaskList)

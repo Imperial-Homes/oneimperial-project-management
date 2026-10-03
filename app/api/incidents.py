@@ -1,5 +1,6 @@
 """Project Incidents API endpoints."""
 
+import uuid
 from datetime import datetime
 from math import ceil
 from uuid import UUID
@@ -20,7 +21,7 @@ router = APIRouter()
 def generate_incident_number() -> str:
     """Generate incident number: INC-YYYYMMDD-XXXX"""
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    return f"INC-{timestamp}"
+    return f"INC-{timestamp}-{uuid.uuid4().hex[:4].upper()}"
 
 
 @router.get("", response_model=IncidentList)
@@ -87,7 +88,7 @@ async def create_incident(
     )
     db.add(incident)
     await db.commit()
-    await db.refresh(incident)
+    await db.refresh(incident, ["project"])
     return incident
 
 
@@ -98,7 +99,9 @@ async def get_incident(
     current_user: UUID = Depends(get_current_user),
 ):
     """Get incident by ID."""
-    result = await db.execute(select(ProjectIncident).where(ProjectIncident.id == incident_id))
+    result = await db.execute(
+        select(ProjectIncident).options(selectinload(ProjectIncident.project)).where(ProjectIncident.id == incident_id)
+    )
     incident = result.scalar_one_or_none()
 
     if not incident:
@@ -115,7 +118,9 @@ async def update_incident(
     current_user: UUID = Depends(get_current_user),
 ):
     """Update incident."""
-    result = await db.execute(select(ProjectIncident).where(ProjectIncident.id == incident_id))
+    result = await db.execute(
+        select(ProjectIncident).options(selectinload(ProjectIncident.project)).where(ProjectIncident.id == incident_id)
+    )
     incident = result.scalar_one_or_none()
 
     if not incident:
@@ -126,7 +131,7 @@ async def update_incident(
 
     incident.updated_by = current_user
     await db.commit()
-    await db.refresh(incident)
+    await db.refresh(incident, ["project"])
     return incident
 
 
@@ -137,7 +142,9 @@ async def delete_incident(
     current_user: UUID = Depends(get_current_user),
 ):
     """Delete incident."""
-    result = await db.execute(select(ProjectIncident).where(ProjectIncident.id == incident_id))
+    result = await db.execute(
+        select(ProjectIncident).options(selectinload(ProjectIncident.project)).where(ProjectIncident.id == incident_id)
+    )
     incident = result.scalar_one_or_none()
 
     if not incident:
@@ -155,7 +162,9 @@ async def resolve_incident(
     current_user: UUID = Depends(get_current_user),
 ):
     """Mark incident as resolved."""
-    result = await db.execute(select(ProjectIncident).where(ProjectIncident.id == incident_id))
+    result = await db.execute(
+        select(ProjectIncident).options(selectinload(ProjectIncident.project)).where(ProjectIncident.id == incident_id)
+    )
     incident = result.scalar_one_or_none()
 
     if not incident:
@@ -171,7 +180,7 @@ async def resolve_incident(
         incident.notes = resolve_data.notes
 
     await db.commit()
-    await db.refresh(incident)
+    await db.refresh(incident, ["project"])
     return incident
 
 
@@ -183,7 +192,9 @@ async def update_incident_status(
     current_user: UUID = Depends(get_current_user),
 ):
     """Update incident status."""
-    result = await db.execute(select(ProjectIncident).where(ProjectIncident.id == incident_id))
+    result = await db.execute(
+        select(ProjectIncident).options(selectinload(ProjectIncident.project)).where(ProjectIncident.id == incident_id)
+    )
     incident = result.scalar_one_or_none()
 
     if not incident:
@@ -192,5 +203,5 @@ async def update_incident_status(
     incident.status = new_status
     incident.updated_by = current_user
     await db.commit()
-    await db.refresh(incident)
+    await db.refresh(incident, ["project"])
     return incident

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cloud_storage import cloud_storage
 from app.core.deps import get_current_user
-from app.database import get_db
+from app.database import get_db, lock_sequence
 from app.models.progress_report import ProgressReport
 from app.schemas.progress_report import (
     ProgressReportCreate,
@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 async def generate_report_id(db: AsyncSession) -> str:
     """Generate a unique report ID like PR-2026-0001."""
+    await lock_sequence(db, "progress_reports.report_id")
     year = datetime.utcnow().year
     prefix = f"PR-{year}-"
 
@@ -88,7 +89,7 @@ async def upload_progress_report_file(
 
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 10 MB.")
 
     now = datetime.now(UTC)
     file_name = f"{uuid_lib.uuid4()}{ext}"

@@ -1,5 +1,6 @@
 """Database configuration."""
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -56,3 +57,12 @@ async def get_db() -> AsyncSession:
             raise
         finally:
             await session.close()
+
+
+async def lock_sequence(db: AsyncSession, name: str) -> None:
+    """Serialize "max + 1" number generation for `name` until the current transaction ends.
+
+    Call before reading the last number; concurrent creates then queue instead of
+    computing the same number and failing the unique index.
+    """
+    await db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:name))"), {"name": name})

@@ -1,6 +1,7 @@
 """Retention Release API endpoints."""
 
 import logging
+import uuid
 from datetime import date, datetime
 from math import ceil
 from uuid import UUID
@@ -34,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 def _generate_release_number() -> str:
     """Generate release number: RR-YYYYMMDDHHMMSS"""
-    return f"RR-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    return f"RR-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:4].upper()}"
 
 
 def _post_retention_gl(

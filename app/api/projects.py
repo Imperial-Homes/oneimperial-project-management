@@ -1,5 +1,6 @@
 """Project API endpoints."""
 
+import uuid
 from datetime import datetime
 from math import ceil
 from uuid import UUID
@@ -19,7 +20,7 @@ router = APIRouter()
 
 def generate_project_code() -> str:
     """Generate project code."""
-    return f"PRJ-{datetime.now().year}-{datetime.now().strftime('%m%d%H%M%S')}"
+    return f"PRJ-{datetime.now().strftime('%y%m%d%H%M%S')}{uuid.uuid4().hex[:4].upper()}"
 
 
 @router.get("", response_model=ProjectList)
